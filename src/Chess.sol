@@ -98,7 +98,7 @@ contract Chess is DSTest {
         blockerBoard |= bitboards[uint(Piece.K)];
     }
 
-    function test_isMoveValid() external returns (bool) {
+    function test_isMoveValid() public returns (bool) {
         // accept a move, extract source and target -> store then in 3 uint256s 
         uint64[12] memory bitboards =  [
             // black pos
@@ -116,8 +116,6 @@ contract Chess is DSTest {
             576460752303423488,
             1152921504606846976
         ];
-
-       
 
     
         // not files, for move validations
@@ -157,6 +155,7 @@ contract Chess is DSTest {
             uint64 sourcePieceBitBoard,
         ) = decodeMove(23, bitboards);
 
+        // king
         if (sourcePiece == Piece.K){
             // moveBy can only be 8, 9, 7, 1
             if (moveBySq != 8 && moveBySq != 9 && moveBySq != 7 && moveBySq != 1){
@@ -199,72 +198,6 @@ contract Chess is DSTest {
                 }
             }
         }
-
-        // white pawns
-        if (sourcePiece == Piece.P){
-            if (moveBySq != 8 && moveBySq != 9 && moveBySq != 7){
-                return false;
-            }
-
-            // cannot move diagnol (i.e attack), unless target piece exists
-            if ((moveBySq == 9 || moveBySq == 7) && targetPiece == Piece.uk){
-                return false;
-            }
-
-            // TODO cannot move forward if something is in front
-
-            // white pawns can only move upwards
-            if (moveLeftShift != false){
-                return false;
-            }
-
-            // cannot go out of the board; white pawns can't move forward when on rank 8
-            if (sourcePieceBitBoard >> moveBySq == 0){
-                return false;
-            }
-
-            // check falling off right edge
-            if (moveBySq == 7 && (sourcePieceBitBoard >> 7 & notAFile) == 0){
-                return false;
-            }
-
-            // check falling off left edge
-            if (moveBySq == 9 && (sourcePieceBitBoard >> 9 & notHFile) == 0){
-                return false;
-            }
-        }   
-
-        // black pawns
-        if (sourcePiece == Piece.p){
-            if (moveBySq != 8 && moveBySq != 9 && moveBySq != 7){
-                return false;
-            }
-
-            // cannot move diagnol, unless target piece exists
-            if ((moveBySq == 9 || moveBySq == 7) && targetPiece == Piece.uk){
-                return false;
-            }
-
-            // black pawns can only move downwards
-            if (moveLeftShift != true){
-                return false;
-            }
-
-            // cannot go out of the board; black pawns can't move forward when on rank 1
-            if (sourcePieceBitBoard << moveBySq == 0){
-                return false;
-            }
-
-            // check falling off right edge
-            if (moveBySq == 9 && (sourcePieceBitBoard << 9 & notAFile) == 0){
-                return false;
-            }
-
-            // check falling off right edge
-            if (moveBySq == 7 && (sourcePieceBitBoard << 7 & notHFile) == 0){
-                return false;
-            }
-        } 
 
         // knight
         if (sourcePiece == Piece.K || sourcePiece == Piece.k) {
@@ -322,6 +255,81 @@ contract Chess is DSTest {
 
         // blockerBitboard 
         uint64 blockerBoard = getBlockerBoard(bitboards);
+
+        // white pawns
+        if (sourcePiece == Piece.P){
+            if (moveBySq != 8 && moveBySq != 9 && moveBySq != 7){
+                return false;
+            }
+
+            // cannot move diagnol (i.e attack), unless target piece exists
+            if ((moveBySq == 9 || moveBySq == 7) && targetPiece == Piece.uk){
+                return false;
+            }
+
+            // white pawns can only move upwards
+            if (moveLeftShift != false){
+                return false;
+            }
+
+            // cannot move forward if something is in front
+            if (moveBySq == 8 && (uint64(1) << sourceSq - 8 & blockerBoard) > 0){
+                return false;
+            }
+
+            // cannot go out of the board; white pawns can't move forward when on rank 8
+            if (sourcePieceBitBoard >> moveBySq == 0){
+                return false;
+            }
+
+            // check falling off right edge
+            if (moveBySq == 7 && (sourcePieceBitBoard >> 7 & notAFile) == 0){
+                return false;
+            }
+
+            // check falling off left edge
+            if (moveBySq == 9 && (sourcePieceBitBoard >> 9 & notHFile) == 0){
+                return false;
+            }
+        }   
+
+        // black pawns
+        if (sourcePiece == Piece.p){
+            if (moveBySq != 8 && moveBySq != 9 && moveBySq != 7){
+                return false;
+            }
+
+            // cannot move diagnol, unless target piece exists
+            if ((moveBySq == 9 || moveBySq == 7) && targetPiece == Piece.uk){
+                return false;
+            }
+
+            // black pawns can only move downwards
+            if (moveLeftShift != true){
+                return false;
+            }
+
+            // cannot move forward if something is in front
+            if (moveBySq == 8 && (uint64(1) << sourceSq + 8 & blockerBoard) > 0){
+                return false;
+            }
+
+
+            // cannot go out of the board; black pawns can't move forward when on rank 1
+            if (sourcePieceBitBoard << moveBySq == 0){
+                return false;
+            }
+
+            // check falling off right edge
+            if (moveBySq == 9 && (sourcePieceBitBoard << 9 & notAFile) == 0){
+                return false;
+            }
+
+            // check falling off right edge
+            if (moveBySq == 7 && (sourcePieceBitBoard << 7 & notHFile) == 0){
+                return false;
+            }
+        } 
 
         // queen
         if (sourcePiece == Piece.Q || sourcePiece == Piece.q){
@@ -528,6 +536,45 @@ contract Chess is DSTest {
 
             // if targetSq not found, then targetSq isn't positioned diagonally to bishop's pos
             require(targetFound);
+        }
+
+    }
+
+    function applyMove() external {
+         uint64[12] memory bitboards =  [
+            // black pos
+            65280,
+            66,
+            36,
+            129,
+            8,
+            16,
+            // white pos
+            71776119061217280,
+            4755801206503243776,
+            2594073385365405696,
+            9295429630892703744,
+            576460752303423488,
+            1152921504606846976
+        ];
+        (
+            uint64 sourceSq, 
+            uint64 targetSq, 
+            uint64 moveBySq, 
+            bool moveLeftShift,
+            Piece sourcePiece,
+            Piece targetPiece,
+            uint64 sourcePieceBitBoard,
+        ) = decodeMove(23, bitboards);
+
+        require(test_isMoveValid(), "Invalid move");
+
+        // update source pos
+        bitboards[uint(sourcePiece)] = (bitboards[uint(sourcePiece)] | uint64(1) << targetSq) & ~uint64(1) << sourceSq;
+
+        // remove target piece, if it exists
+        if (targetPiece != Piece.uk){
+            bitboards[uint(targetPiece)] = bitboards[uint(targetPiece)] & ~(uint64(1) << targetSq);
         }
     }
 }
