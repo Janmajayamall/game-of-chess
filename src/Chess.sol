@@ -13,6 +13,31 @@ contract Chess is DSTest {
         p, n, b, r, q, k, P, N, B, R, Q, K, uk
     }
 
+    struct Move {
+        uint64 sourceSq;
+        uint64 targetSq; 
+        uint64 moveBySq; 
+
+        uint64 sourcePieceBitBoard;
+        uint64 targetPieceBitBoard;
+
+        bool moveLeftShift; // left shift is down the board & right shift is up the board
+
+        Piece sourcePiece;
+        Piece targetPiece;
+        Piece promotedToPiece;
+
+        MoveFlag moveFlag;
+    }
+
+    enum MoveFlag {
+        NoFlag,
+        DoublePush,
+        Enpassant,
+        Castle,
+        PawnPromotion
+    }
+
     // uint256[12] bitboards = [
     //     // black pos
     //     65280,
@@ -42,44 +67,58 @@ contract Chess is DSTest {
     // }
 
 
-    function decodeMove(uint move, uint64[12] memory bitboards) internal returns (
-            uint64 sourceSq, 
-            uint64 targetSq, 
-            uint64 moveBySq, 
-            bool moveLeftShift,
-            Piece sourcePiece,
-            Piece targetPiece,
-            uint64 sourcePieceBitBoard,
-            uint64 targetPieceBitBoard
-            
-        ) {
-        sourceSq = 0;
-        targetSq = 0;
-        moveBySq = 0;
-        moveLeftShift = false; // left shift is down the board & right shift is up the board
-        if ( targetSq > sourceSq){
-            moveBySq = targetSq - sourceSq;
-            moveLeftShift = true;
-        }else if ( targetSq < sourceSq){
-            moveBySq = sourceSq - targetSq;
-            moveLeftShift = false;
-        }
-        require(targetSq != sourceSq, "No move");
+    function decodeMove(uint24 moveValue, uint64[12] memory bitboards) internal returns (Move memory move) {
+        move.sourceSq = moveValue & 63;
+        move.targetSq = moveValue & 4032 >> 6;
 
-        // check is transition valid depending on the piece being moved
+        uint pawnPromotion = moveValue & 61440 >> 12;
+        move.promotedToPiece = Piece.uk;
+
+        // move flag
+        uint doublePushFlag = moveValue & 65536 >> 16;
+        uint enpassantFlag = moveValue & 131072 >> 17;
+        uint castleFlag = moveValue & 262144 >> 18;
+        uint sumFlags = doublePushFlag + enpassantFlag + castleFlag;
+        
+        require(pawnPromotion > 0 && pawnPromotion < 12 && sumFlags == 0 || sumFlags == 1 && pawnPromotion == 0 || pawnPromotion == 0 && sumFlags == 0, "Invalid flags");
+
+        MoveFlag moveFlag = MoveFlag.NoFlag;
+        if (pawnPromotion != 0){
+            moveFlag = MoveFlag.PawnPromotion;
+            move.promotedToPiece = Piece(pawnPromotion);
+        }else if (doublePushFlag == 1){
+            moveFlag = MoveFlag.DoublePush;
+        }else if (enpassantFlag == 1){
+            moveFlag = MoveFlag.Enpassant;
+        }else if (castleFlag == 1){
+            moveFlag = MoveFlag.Castle;
+        }
+        move.moveFlag = moveFlag;
+
+        if (move.targetSq > move.sourceSq){
+            move.moveBySq = move.targetSq - move.sourceSq;
+            move.moveLeftShift = true;
+        }else if ( move.targetSq < move.sourceSq){
+            move.moveBySq = move.sourceSq - move.targetSq;
+            move.moveLeftShift = false;
+        }
+        require(move.targetSq != move.sourceSq, "No move");
+
         // find the piece being moved
-        sourcePiece = Piece.uk;
-        targetPiece = Piece.uk;
+        move.sourcePiece = Piece.uk;
+        move.targetPiece = Piece.uk;
+        move.sourcePieceBitBoard = uint64(1) << move.sourceSq;
+        move.targetPieceBitBoard = uint64(1) << move.targetSq;
         for (uint64 index = 1; index < bitboards.length; index++) {
             uint64 board = bitboards[index];
-            if ((1 << sourceSq & board)>0){
-                // piece exists
-                sourcePiece = Piece(index);
-                sourcePieceBitBoard = uint64(1) << sourceSq;
+            if ((move.sourcePieceBitBoard & board)>0){
+                move.sourcePiece = Piece(index);
+            }
+            if ((move.targetPieceBitBoard & board)>0){
+                move.targetPiece = Piece(index);
             }
         }
-        
-        require(sourcePiece != Piece.uk && targetPiece != Piece.uk, "Unknown Piece");
+        require(move.sourcePiece != Piece.uk, "Unknown Piece");
     }
 
     function getBlockerBoard(uint64[12] memory bitboards) internal pure returns (uint64 blockerBoard){
@@ -145,108 +184,110 @@ contract Chess is DSTest {
         //     return false;
         // }
 
-        (
-            uint64 sourceSq, 
-            uint64 targetSq, 
-            uint64 moveBySq, 
-            bool moveLeftShift,
-            Piece sourcePiece,
-            Piece targetPiece,
-            uint64 sourcePieceBitBoard,
-        ) = decodeMove(23, bitboards);
+        // (
+        //     uint64 sourceSq, 
+        //     uint64 targetSq, 
+        //     uint64 moveBySq, 
+        //     bool moveLeftShift,
+        //     Piece sourcePiece,
+        //     Piece targetPiece,
+        //     uint64 sourcePieceBitBoard,
+        // ) = decodeMove(23, bitboards);
+
+        Move memory move = decodeMove(23, bitboards);
 
         // king
-        if (sourcePiece == Piece.K){
+        if (move.sourcePiece == Piece.K){
             // moveBy can only be 8, 9, 7, 1
-            if (moveBySq != 8 && moveBySq != 9 && moveBySq != 7 && moveBySq != 1){
+            if (move.moveBySq != 8 && move.moveBySq != 9 && move.moveBySq != 7 && move.moveBySq != 1){
                 return false;
             }
 
             // downwards
-            if (moveLeftShift == true){
+            if (move.moveLeftShift == true){
                 // can only move inside the board
-                if (sourcePieceBitBoard << uint64(moveBySq) == 0){
+                if (move.sourcePieceBitBoard << uint64(move.moveBySq) == 0){
                     return false;
                 }
 
                 // check falling off right edge
-                if (moveBySq == 9 && (sourcePieceBitBoard << 9 & notAFile) == 0){
+                if (move.moveBySq == 9 && (move.sourcePieceBitBoard << 9 & notAFile) == 0){
                     return false;
                 }
 
                 // check falling off left edge
-                if (moveBySq == 7 && (sourcePieceBitBoard << 7 & notHFile) == 0){
+                if (move.moveBySq == 7 && (move.sourcePieceBitBoard << 7 & notHFile) == 0){
                     return false;
                 }
             }
 
             // upwards
-            if (moveLeftShift == false){
+            if (move.moveLeftShift == false){
                 // can only move inside the board
-                if (sourcePieceBitBoard >> uint64(moveBySq) == 0){
+                if (move.sourcePieceBitBoard >> move.moveBySq == 0){
                     return false;
                 }
 
                 // check falling off right edge
-                if (moveBySq == 7 && (sourcePieceBitBoard >> 7 & notAFile) == 0){
+                if (move.moveBySq == 7 && (move.sourcePieceBitBoard >> 7 & notAFile) == 0){
                     return false;
                 }
 
                 // check falling off left edge 
-                if (moveBySq == 9 && (sourcePieceBitBoard >> 9 & notHFile) == 0){
+                if (move.moveBySq == 9 && (move.sourcePieceBitBoard >> 9 & notHFile) == 0){
                     return false;
                 }
             }
         }
 
         // knight
-        if (sourcePiece == Piece.K || sourcePiece == Piece.k) {
-            if (moveBySq != 17 && moveBySq != 15 && moveBySq != 6 && moveBySq != 10) {
+        if (move.sourcePiece == Piece.K || move.sourcePiece == Piece.k) {
+            if (move.moveBySq != 17 && move.moveBySq != 15 && move.moveBySq != 6 && move.moveBySq != 10) {
                 return false;
             }
 
             // downwards
-            if (moveLeftShift == true){
+            if (move.moveLeftShift == true){
                 // check falling off right edge
-                if (moveBySq == 17 && (sourcePieceBitBoard <<  17 & notAFile) == 0){
+                if (move.moveBySq == 17 && (move.sourcePieceBitBoard <<  17 & notAFile) == 0){
                     return false;
                 }
 
                 // check falling off right edge (2 lvl deep)
-                if (moveBySq == 10 && (sourcePieceBitBoard <<  10 & notABFile) == 0){
+                if (move.moveBySq == 10 && (move.sourcePieceBitBoard <<  10 & notABFile) == 0){
                     return false;
                 }
 
                 // check falling off left edge
-                if (moveBySq == 15 && (sourcePieceBitBoard <<  15 & notHFile) == 0){
+                if (move.moveBySq == 15 && (move.sourcePieceBitBoard <<  15 & notHFile) == 0){
                     return false;
                 }
 
                 // check falling off left edge (2 lvl deep)
-                if (moveBySq == 6 && (sourcePieceBitBoard <<  6 & notHGFile) == 0){
+                if (move.moveBySq == 6 && (move.sourcePieceBitBoard <<  6 & notHGFile) == 0){
                     return false;
                 }
             }
 
             // upwards
-            if (moveLeftShift == false){
+            if (move.moveLeftShift == false){
                 // check falling off right edge
-                if (moveBySq == 15 && (sourcePieceBitBoard >> 15 & notAFile) == 0){
+                if (move.moveBySq == 15 && (move.sourcePieceBitBoard >> 15 & notAFile) == 0){
                     return false;
                 }
 
                 // check falling off right edgen (2 lvl deep)
-                if (moveBySq == 6 && (sourcePieceBitBoard >> 6 & notABFile) == 0){
+                if (move.moveBySq == 6 && (move.sourcePieceBitBoard >> 6 & notABFile) == 0){
                     return false;
                 }
 
                 // check falling off left edge
-                if (moveBySq == 17 && (sourcePieceBitBoard >> 17 & notHFile) == 0){
+                if (move.moveBySq == 17 && (move.sourcePieceBitBoard >> 17 & notHFile) == 0){
                     return false;
                 }
 
                 // check falling off left edge (2 lvl deep)
-                if (moveBySq == 10 && (sourcePieceBitBoard >> 10 & notHGFile) == 0){
+                if (move.moveBySq == 10 && (move.sourcePieceBitBoard >> 10 & notHGFile) == 0){
                     return false;
                 }
             }
@@ -257,96 +298,96 @@ contract Chess is DSTest {
         uint64 blockerBoard = getBlockerBoard(bitboards);
 
         // white pawns
-        if (sourcePiece == Piece.P){
-            if (moveBySq != 8 && moveBySq != 9 && moveBySq != 7){
+        if (move.sourcePiece == Piece.P){
+            if (move.moveBySq != 8 && move.moveBySq != 9 && move.moveBySq != 7){
                 return false;
             }
 
             // cannot move diagnol (i.e attack), unless target piece exists
-            if ((moveBySq == 9 || moveBySq == 7) && targetPiece == Piece.uk){
+            if ((move.moveBySq == 9 || move.moveBySq == 7) && move.targetPiece == Piece.uk){
                 return false;
             }
 
             // white pawns can only move upwards
-            if (moveLeftShift != false){
+            if (move.moveLeftShift != false){
                 return false;
             }
 
             // cannot move forward if something is in front
-            if (moveBySq == 8 && (uint64(1) << sourceSq - 8 & blockerBoard) > 0){
+            if (move.moveBySq == 8 && (uint64(1) << move.sourceSq - 8 & blockerBoard) > 0){
                 return false;
             }
 
             // cannot go out of the board; white pawns can't move forward when on rank 8
-            if (sourcePieceBitBoard >> moveBySq == 0){
+            if (move.sourcePieceBitBoard >> move.moveBySq == 0){
                 return false;
             }
 
             // check falling off right edge
-            if (moveBySq == 7 && (sourcePieceBitBoard >> 7 & notAFile) == 0){
+            if (move.moveBySq == 7 && (move.sourcePieceBitBoard >> 7 & notAFile) == 0){
                 return false;
             }
 
             // check falling off left edge
-            if (moveBySq == 9 && (sourcePieceBitBoard >> 9 & notHFile) == 0){
+            if (move.moveBySq == 9 && (move.sourcePieceBitBoard >> 9 & notHFile) == 0){
                 return false;
             }
         }   
 
         // black pawns
-        if (sourcePiece == Piece.p){
-            if (moveBySq != 8 && moveBySq != 9 && moveBySq != 7){
+        if (move.sourcePiece == Piece.p){
+            if (move.moveBySq != 8 && move.moveBySq != 9 && move.moveBySq != 7){
                 return false;
             }
 
             // cannot move diagnol, unless target piece exists
-            if ((moveBySq == 9 || moveBySq == 7) && targetPiece == Piece.uk){
+            if ((move.moveBySq == 9 || move.moveBySq == 7) && move.targetPiece == Piece.uk){
                 return false;
             }
 
             // black pawns can only move downwards
-            if (moveLeftShift != true){
+            if (move.moveLeftShift != true){
                 return false;
             }
 
             // cannot move forward if something is in front
-            if (moveBySq == 8 && (uint64(1) << sourceSq + 8 & blockerBoard) > 0){
+            if (move.moveBySq == 8 && (uint64(1) << move.sourceSq + 8 & blockerBoard) > 0){
                 return false;
             }
 
 
             // cannot go out of the board; black pawns can't move forward when on rank 1
-            if (sourcePieceBitBoard << moveBySq == 0){
+            if (move.sourcePieceBitBoard << move.moveBySq == 0){
                 return false;
             }
 
             // check falling off right edge
-            if (moveBySq == 9 && (sourcePieceBitBoard << 9 & notAFile) == 0){
+            if (move.moveBySq == 9 && (move.sourcePieceBitBoard << 9 & notAFile) == 0){
                 return false;
             }
 
             // check falling off right edge
-            if (moveBySq == 7 && (sourcePieceBitBoard << 7 & notHFile) == 0){
+            if (move.moveBySq == 7 && (move.sourcePieceBitBoard << 7 & notHFile) == 0){
                 return false;
             }
         } 
 
         // queen
-        if (sourcePiece == Piece.Q || sourcePiece == Piece.q){
+        if (move.sourcePiece == Piece.Q || move.sourcePiece == Piece.q){
             // if rank or file matches, then move is like a rook, otherwise bishop
-            if ((sourceSq % 8 == targetSq % 8) || (sourceSq / 8 == targetSq / 8)){
-                sourcePiece == Piece.R;
+            if ((move.sourceSq % 8 == move.targetSq % 8) || (move.sourceSq / 8 == move.targetSq / 8)){
+                move.sourcePiece == Piece.R;
             }else {
-                sourcePiece == Piece.B;
+                move.sourcePiece == Piece.B;
             }
         }
     
         // bishop
-        if (sourcePiece == Piece.B || sourcePiece == Piece.b) {
-            uint sr = sourceSq / 8; 
-            uint sf = sourceSq % 8;
-            uint tr = targetSq / 8; 
-            uint tf = targetSq % 8;
+        if (move.sourcePiece == Piece.B || move.sourcePiece == Piece.b) {
+            uint sr = move.sourceSq / 8; 
+            uint sf = move.sourceSq % 8;
+            uint tr = move.targetSq / 8; 
+            uint tf = move.targetSq % 8;
             
             bool targetFound = false;
 
@@ -357,7 +398,7 @@ contract Chess is DSTest {
                 while (r <= 7 && f <= 7){
                     uint sq = (r * 8) + f;
 
-                    if (sq == targetSq){
+                    if (sq == move.targetSq){
                         targetFound = true;
                         break;
                     }
@@ -377,7 +418,7 @@ contract Chess is DSTest {
                 while (r <= 7 && f >= 0){
                     uint sq = (r * 8) + f;
 
-                    if (sq == targetSq){
+                    if (sq == move.targetSq){
                         targetFound = true;
                         break;
                     }
@@ -400,7 +441,7 @@ contract Chess is DSTest {
                 while (r >= 0 && f >= 0){
                     uint sq = (r * 8) + f;
 
-                    if (sq == targetSq){
+                    if (sq == move.targetSq){
                         targetFound = true;
                         break;
                     }
@@ -423,7 +464,7 @@ contract Chess is DSTest {
                 while (r >= 0 && f <= 7){
                     uint sq = (r * 8) + f;
                     
-                    if (sq == targetSq){
+                    if (sq == move.targetSq){
                         targetFound = true;
                         break;
                     }
@@ -446,11 +487,11 @@ contract Chess is DSTest {
         }
 
         // rook
-        if (sourcePiece == Piece.R || sourcePiece == Piece.r) {
-            uint sr = sourceSq / 8; 
-            uint sf = sourceSq % 8;
-            uint tr = targetSq / 8; 
-            uint tf = targetSq % 8;
+        if (move.sourcePiece == Piece.R || move.sourcePiece == Piece.r) {
+            uint sr = move.sourceSq / 8; 
+            uint sf = move.sourceSq % 8;
+            uint tr = move.targetSq / 8; 
+            uint tf = move.targetSq % 8;
             
             bool targetFound = false;
 
@@ -460,7 +501,7 @@ contract Chess is DSTest {
                 while (f <= 7){
                     uint sq = (sr * 8) + f;
 
-                    if (sq == targetSq){
+                    if (sq == move.targetSq){
                         targetFound = true;
                         break;
                     }
@@ -478,7 +519,7 @@ contract Chess is DSTest {
                 while (f >= 0){
                     uint sq = (sr * 8) + f;
 
-                    if (sq == targetSq){
+                    if (sq == move.targetSq){
                         targetFound = true;
                         break;
                     }
@@ -499,7 +540,7 @@ contract Chess is DSTest {
                 while (r >= 0){
                     uint sq = (r * 8) + sf;
 
-                    if (sq == targetSq){
+                    if (sq == move.targetSq){
                         targetFound = true;
                         break;
                     }
@@ -520,7 +561,7 @@ contract Chess is DSTest {
                 while (r <= 7){
                     uint sq = (r * 8) + sf;
                     
-                    if (sq == targetSq){
+                    if (sq == move.targetSq){
                         targetFound = true;
                         break;
                     }
@@ -557,27 +598,38 @@ contract Chess is DSTest {
             576460752303423488,
             1152921504606846976
         ];
-        (
-            uint64 sourceSq, 
-            uint64 targetSq, 
-            uint64 moveBySq, 
-            bool moveLeftShift,
-            Piece sourcePiece,
-            Piece targetPiece,
-            uint64 sourcePieceBitBoard,
-        ) = decodeMove(23, bitboards);
+        // (
+        //     uint64 sourceSq, 
+        //     uint64 targetSq, 
+        //     uint64 moveBySq, 
+        //     bool moveLeftShift,
+        //     Piece sourcePiece,
+        //     Piece targetPiece,
+        //     uint64 sourcePieceBitBoard,
+        // ) = decodeMove(23, bitboards);
 
-        require(test_isMoveValid(), "Invalid move");
+        // require(test_isMoveValid(), "Invalid move");
 
-        // update source pos
-        bitboards[uint(sourcePiece)] = (bitboards[uint(sourcePiece)] | uint64(1) << targetSq) & ~uint64(1) << sourceSq;
+        // // update source pos
+        // bitboards[uint(sourcePiece)] = (bitboards[uint(sourcePiece)] | uint64(1) << targetSq) & ~uint64(1) << sourceSq;
 
-        // remove target piece, if it exists
-        if (targetPiece != Piece.uk){
-            bitboards[uint(targetPiece)] = bitboards[uint(targetPiece)] & ~(uint64(1) << targetSq);
-        }
+        // // remove target piece, if it exists
+        // if (targetPiece != Piece.uk){
+        //     bitboards[uint(targetPiece)] = bitboards[uint(targetPiece)] & ~(uint64(1) << targetSq);
+        // }
     }
+
+
 }
+/**
+    Move bits
+    0000 0000 0000 0011 1111 source sq
+    0000 0000 1111 1100 0000 target sq
+    0000 1111 0000 0000 0000 promoted piece
+    0001 0000 0000 0000 0000 double push flag
+    0010 0000 0000 0000 0000 enpassant flat
+    0100 0000 0000 0000 0000 castle flag
+ */
 
 /**
 
