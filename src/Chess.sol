@@ -30,12 +30,6 @@ contract Chess is DSTest {
     //     1152921504606846976
     // ];
 
-    uint  r= 2;
-
-    function getFF() internal returns(uint){
-        return 2;
-    }
-
 
     function test_isMoveValid() external returns (bool) {
         // accept a move, extract source and target -> store then in 3 uint256s 
@@ -72,6 +66,7 @@ contract Chess is DSTest {
         whiteBoard |= bitboards[uint(Piece.Q)];
         whiteBoard |= bitboards[uint(Piece.K)];
 
+    
         // not files, for move validations
         uint64 notAFile = 18374403900871474942;
         uint64 notHFile = 9187201950435737471;
@@ -80,7 +75,7 @@ contract Chess is DSTest {
 
         // for a normal piece move
 
-        uint side = 0; // white = 0; black = 1
+        // uint side = 0; // white = 0; black = 1
         uint64 sourceSq = 0;
         uint64 targetSq = 0;
         uint64 moveBySq = 0;
@@ -180,10 +175,12 @@ contract Chess is DSTest {
                 return false;
             }
 
-            // cannot move dignol, unless target piece exists
+            // cannot move diagnol (i.e attack), unless target piece exists
             if ((moveBySq == 9 || moveBySq == 7) && targetPiece == Piece.uk){
                 return false;
             }
+
+            // TODO cannot move forward if something is in front
 
             // white pawns can only move upwards
             if (moveLeftShift != false){
@@ -292,6 +289,109 @@ contract Chess is DSTest {
 
         }
 
+        // blockerBitboard 
+
+    
+        // bishop
+        if (sourcePiece == Piece.B || sourcePiece == Piece.b) {
+            uint _sourceSq = sourceSq;
+            uint _targetSq = targetSq;
+            uint _blockerBoard = whiteBoard | blackBoard;
+            {
+                uint sr = _sourceSq / 8; 
+                uint sf = _sourceSq % 8;
+                uint tr = _targetSq / 8; 
+                uint tf = _targetSq % 8;
+                
+                bool targetFound = false;
+
+                // check target is daigonal & there exist no blockers
+                if (sr < tr && sf < tf){
+                    uint r = sr + 1;
+                    uint f = sf + 1;
+                    while (r <= 7 && f <= 7){
+                        uint sq = (r * 8) + f;
+
+                        if (sq == targetSq){
+                            targetFound = true;
+                            break;
+                        }
+
+                        // check whether blocker exists
+                        if ((uint(1) << sq & _blockerBoard) > 0){
+                            break;
+                        }
+
+                        r += 1;
+                        f += 1;
+                    }
+                }
+                if (sr < tr && sf > tf) {
+                    uint r = sr + 1;
+                    uint f = sf - 1;
+                    while (r <= 7 && f >= 0){
+                        uint sq = (r * 8) + f;
+
+                        if (sq == targetSq){
+                            targetFound = true;
+                            break;
+                        }
+
+                        // check for blocker at sq, if block exists then return false
+
+                        r += 1;
+                        if (f == 0){
+                            break;
+                        }
+                        f -= 1;
+                    }
+                }
+                if (sr > tr && sf > tf) {
+                    uint r = sr + 1;
+                    uint f = sf - 1;
+                    while (r >= 0 && f >= 0){
+                        uint sq = (r * 8) + f;
+
+                        if (sq == targetSq){
+                            targetFound = true;
+                            break;
+                        }
+
+                        if (r == 0 || f == 0){
+                            break;
+                        }
+                        r -= 1;
+                        f -= 1;
+                    }
+                }
+                if (sr > tr && sf < tf){
+                    uint r = sr - 1;
+                    uint f = sf + 1;
+                    while (r >= 0 && f <= 7){
+                        uint sq = (r * 8) + f;
+                        
+                        if (sq == targetSq){
+                            targetFound = true;
+                            break;
+                        }
+
+                        if (r == 0){
+                            break;
+                        }
+                        r -= 1;
+                        f += 1;
+                    }
+                }
+
+                // if targetSq found, then targetSq isn't positioned diagonally to bishop's pos
+                require(targetFound);
+            }
+            
+        }
+
+        // rook
+
+        // queen
 
         emit log_uint(blackBoard);
         emit log_uint(whiteBoard);
