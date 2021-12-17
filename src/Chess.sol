@@ -50,6 +50,9 @@ contract Chess is DSTest {
             moveBySq = sourceSq - targetSq;
             moveLeftShift = false;
         }
+        if (moveBySq == 0){
+            return false; // no move specified
+        }
 
         // accept a move, extract source and target -> store then in 3 uint256s 
         uint64[12] memory bitboards =  [
