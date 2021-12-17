@@ -30,6 +30,73 @@ contract Chess is DSTest {
     //     1152921504606846976
     // ];
 
+    // function eall() internal returns (uint){
+    //     return 256;
+    // }
+
+    // function test_ecall() external {
+    //     uint f = eall();
+    // }
+    // function test_3ecall() external {
+    //     uint f = 256;
+    // }
+
+
+    function decodeMove(uint move, uint64[12] memory bitboards) internal returns (
+            uint64 sourceSq, 
+            uint64 targetSq, 
+            uint64 moveBySq, 
+            bool moveLeftShift,
+            Piece sourcePiece,
+            Piece targetPiece,
+            uint64 sourcePieceBitBoard,
+            uint64 targetPieceBitBoard
+            
+        ) {
+        sourceSq = 0;
+        targetSq = 0;
+        moveBySq = 0;
+        moveLeftShift = false; // left shift is down the board & right shift is up the board
+        if ( targetSq > sourceSq){
+            moveBySq = targetSq - sourceSq;
+            moveLeftShift = true;
+        }else if ( targetSq < sourceSq){
+            moveBySq = sourceSq - targetSq;
+            moveLeftShift = false;
+        }
+        require(targetSq != sourceSq, "No move");
+
+        // check is transition valid depending on the piece being moved
+        // find the piece being moved
+        sourcePiece = Piece.uk;
+        targetPiece = Piece.uk;
+        for (uint64 index = 1; index < bitboards.length; index++) {
+            uint64 board = bitboards[index];
+            if ((1 << sourceSq & board)>0){
+                // piece exists
+                sourcePiece = Piece(index);
+                sourcePieceBitBoard = uint64(1) << sourceSq;
+            }
+        }
+        
+        require(sourcePiece != Piece.uk && targetPiece != Piece.uk, "Unknown Piece");
+    }
+
+    function getBlockerBoard(uint64[12] memory bitboards) internal pure returns (uint64 blockerBoard){
+        blockerBoard |= bitboards[uint(Piece.p)];
+        blockerBoard |= bitboards[uint(Piece.n)];
+        blockerBoard |= bitboards[uint(Piece.b)];
+        blockerBoard |= bitboards[uint(Piece.r)];
+        blockerBoard |= bitboards[uint(Piece.q)];
+        blockerBoard |= bitboards[uint(Piece.k)];
+
+        blockerBoard |= bitboards[uint(Piece.P)];
+        blockerBoard |= bitboards[uint(Piece.N)];
+        blockerBoard |= bitboards[uint(Piece.B)];
+        blockerBoard |= bitboards[uint(Piece.R)];
+        blockerBoard |= bitboards[uint(Piece.Q)];
+        blockerBoard |= bitboards[uint(Piece.K)];
+    }
 
     function test_isMoveValid() external returns (bool) {
         // accept a move, extract source and target -> store then in 3 uint256s 
@@ -50,21 +117,7 @@ contract Chess is DSTest {
             1152921504606846976
         ];
 
-        // black board
-        uint64 blackBoard = bitboards[uint(Piece.p)];
-        blackBoard |= bitboards[uint(Piece.n)];
-        blackBoard |= bitboards[uint(Piece.b)];
-        blackBoard |= bitboards[uint(Piece.r)];
-        blackBoard |= bitboards[uint(Piece.q)];
-        blackBoard |= bitboards[uint(Piece.k)];
-
-        // black board
-        uint64 whiteBoard = bitboards[uint(Piece.P)];
-        whiteBoard |= bitboards[uint(Piece.N)];
-        whiteBoard |= bitboards[uint(Piece.B)];
-        whiteBoard |= bitboards[uint(Piece.R)];
-        whiteBoard |= bitboards[uint(Piece.Q)];
-        whiteBoard |= bitboards[uint(Piece.K)];
+       
 
     
         // not files, for move validations
@@ -76,20 +129,7 @@ contract Chess is DSTest {
         // for a normal piece move
 
         // uint side = 0; // white = 0; black = 1
-        uint64 sourceSq = 0;
-        uint64 targetSq = 0;
-        uint64 moveBySq = 0;
-        bool moveLeftShift = false; // left shift is down the board & right shift is up the board
-        if ( targetSq > sourceSq){
-            moveBySq = targetSq - sourceSq;
-            moveLeftShift = true;
-        }else if ( targetSq < sourceSq){
-            moveBySq = sourceSq - targetSq;
-            moveLeftShift = false;
-        }
-        if (moveBySq == 0){
-            return false; // no move specified
-        }
+        
 
         // // check that target isn't occupied by some piece on the same side
         // if (side == 0 && (1 << targetSq & whiteBoard) > 0){
@@ -99,24 +139,6 @@ contract Chess is DSTest {
         //     return false;
         // }
 
-        // check is transition valid depending on the piece being moved
-        // find the piece being moved
-        Piece sourcePiece = Piece.uk;
-        Piece targetPiece = Piece.uk;
-        uint64 sourcePieceBitBoard;
-        for (uint64 index = 1; index < bitboards.length; index++) {
-            uint64 board = bitboards[index];
-            if ((1 << sourceSq & board)>0){
-                // piece exists
-                sourcePiece = Piece(index);
-                sourcePieceBitBoard = uint64(1) << sourceSq;
-            }
-        }
-        // no piece present at sourceSq
-        if (sourcePiece == Piece.uk){
-            return false;
-        }
-
         /**
         Check that target piece & source piece do not belong to the same side
          */
@@ -125,6 +147,15 @@ contract Chess is DSTest {
         //     return false;
         // }
 
+        (
+            uint64 sourceSq, 
+            uint64 targetSq, 
+            uint64 moveBySq, 
+            bool moveLeftShift,
+            Piece sourcePiece,
+            Piece targetPiece,
+            uint64 sourcePieceBitBoard,
+        ) = decodeMove(23, bitboards);
 
         if (sourcePiece == Piece.K){
             // moveBy can only be 8, 9, 7, 1
@@ -290,111 +321,217 @@ contract Chess is DSTest {
         }
 
         // blockerBitboard 
-
+        uint64 blockerBoard = getBlockerBoard(bitboards);
     
         // bishop
         if (sourcePiece == Piece.B || sourcePiece == Piece.b) {
-            uint _sourceSq = sourceSq;
-            uint _targetSq = targetSq;
-            uint _blockerBoard = whiteBoard | blackBoard;
-            {
-                uint sr = _sourceSq / 8; 
-                uint sf = _sourceSq % 8;
-                uint tr = _targetSq / 8; 
-                uint tf = _targetSq % 8;
-                
-                bool targetFound = false;
-
-                // check target is daigonal & there exist no blockers
-                if (sr < tr && sf < tf){
-                    uint r = sr + 1;
-                    uint f = sf + 1;
-                    while (r <= 7 && f <= 7){
-                        uint sq = (r * 8) + f;
-
-                        if (sq == targetSq){
-                            targetFound = true;
-                            break;
-                        }
-
-                        // check whether blocker exists
-                        if ((uint(1) << sq & _blockerBoard) > 0){
-                            break;
-                        }
-
-                        r += 1;
-                        f += 1;
-                    }
-                }
-                if (sr < tr && sf > tf) {
-                    uint r = sr + 1;
-                    uint f = sf - 1;
-                    while (r <= 7 && f >= 0){
-                        uint sq = (r * 8) + f;
-
-                        if (sq == targetSq){
-                            targetFound = true;
-                            break;
-                        }
-
-                        // check for blocker at sq, if block exists then return false
-
-                        r += 1;
-                        if (f == 0){
-                            break;
-                        }
-                        f -= 1;
-                    }
-                }
-                if (sr > tr && sf > tf) {
-                    uint r = sr + 1;
-                    uint f = sf - 1;
-                    while (r >= 0 && f >= 0){
-                        uint sq = (r * 8) + f;
-
-                        if (sq == targetSq){
-                            targetFound = true;
-                            break;
-                        }
-
-                        if (r == 0 || f == 0){
-                            break;
-                        }
-                        r -= 1;
-                        f -= 1;
-                    }
-                }
-                if (sr > tr && sf < tf){
-                    uint r = sr - 1;
-                    uint f = sf + 1;
-                    while (r >= 0 && f <= 7){
-                        uint sq = (r * 8) + f;
-                        
-                        if (sq == targetSq){
-                            targetFound = true;
-                            break;
-                        }
-
-                        if (r == 0){
-                            break;
-                        }
-                        r -= 1;
-                        f += 1;
-                    }
-                }
-
-                // if targetSq found, then targetSq isn't positioned diagonally to bishop's pos
-                require(targetFound);
-            }
+            uint sr = sourceSq / 8; 
+            uint sf = sourceSq % 8;
+            uint tr = targetSq / 8; 
+            uint tf = targetSq % 8;
             
+            bool targetFound = false;
+
+            // check target is daigonal & there exist no blockers
+            if (sr < tr && sf < tf){
+                uint r = sr + 1;
+                uint f = sf + 1;
+                while (r <= 7 && f <= 7){
+                    uint sq = (r * 8) + f;
+
+                    if (sq == targetSq){
+                        targetFound = true;
+                        break;
+                    }
+
+                    // check whether blocker exists
+                    if ((uint(1) << sq & blockerBoard) > 0){
+                        break;
+                    }
+
+                    r += 1;
+                    f += 1;
+                }
+            }
+            if (sr < tr && sf > tf) {
+                uint r = sr + 1;
+                uint f = sf - 1;
+                while (r <= 7 && f >= 0){
+                    uint sq = (r * 8) + f;
+
+                    if (sq == targetSq){
+                        targetFound = true;
+                        break;
+                    }
+
+                    // check whether blocker exists
+                    if ((uint(1) << sq & blockerBoard) > 0){
+                        break;
+                    }
+
+                    r += 1;
+                    if (f == 0){
+                        break;
+                    }
+                    f -= 1;
+                }
+            }
+            if (sr > tr && sf > tf) {
+                uint r = sr + 1;
+                uint f = sf - 1;
+                while (r >= 0 && f >= 0){
+                    uint sq = (r * 8) + f;
+
+                    if (sq == targetSq){
+                        targetFound = true;
+                        break;
+                    }
+
+                    // check whether blocker exists
+                    if ((uint(1) << sq & blockerBoard) > 0){
+                        break;
+                    }
+
+                    if (r == 0 || f == 0){
+                        break;
+                    }
+                    r -= 1;
+                    f -= 1;
+                }
+            }
+            if (sr > tr && sf < tf){
+                uint r = sr - 1;
+                uint f = sf + 1;
+                while (r >= 0 && f <= 7){
+                    uint sq = (r * 8) + f;
+                    
+                    if (sq == targetSq){
+                        targetFound = true;
+                        break;
+                    }
+
+                    // check whether blocker exists
+                    if ((uint(1) << sq & blockerBoard) > 0){
+                        break;
+                    }
+
+                    if (r == 0){
+                        break;
+                    }
+                    r -= 1;
+                    f += 1;
+                }
+            }
+
+            // if targetSq not found, then targetSq isn't positioned diagonally to bishop's pos
+            require(targetFound);
         }
 
         // rook
+        if (sourcePiece == Piece.R || sourcePiece == Piece.r) {
+            uint sr = sourceSq / 8; 
+            uint sf = sourceSq % 8;
+            uint tr = targetSq / 8; 
+            uint tf = targetSq % 8;
+            
+            bool targetFound = false;
+
+            // check target is daigonal & there exist no blockers
+            if (sr < tr && sf < tf){
+                uint r = sr + 1;
+                uint f = sf + 1;
+                while (r <= 7 && f <= 7){
+                    uint sq = (r * 8) + f;
+
+                    if (sq == targetSq){
+                        targetFound = true;
+                        break;
+                    }
+
+                    // check whether blocker exists
+                    if ((uint(1) << sq & blockerBoard) > 0){
+                        break;
+                    }
+
+                    r += 1;
+                    f += 1;
+                }
+            }
+            if (sr < tr && sf > tf) {
+                uint r = sr + 1;
+                uint f = sf - 1;
+                while (r <= 7 && f >= 0){
+                    uint sq = (r * 8) + f;
+
+                    if (sq == targetSq){
+                        targetFound = true;
+                        break;
+                    }
+
+                    // check whether blocker exists
+                    if ((uint(1) << sq & blockerBoard) > 0){
+                        break;
+                    }
+
+                    r += 1;
+                    if (f == 0){
+                        break;
+                    }
+                    f -= 1;
+                }
+            }
+            if (sr > tr && sf > tf) {
+                uint r = sr + 1;
+                uint f = sf - 1;
+                while (r >= 0 && f >= 0){
+                    uint sq = (r * 8) + f;
+
+                    if (sq == targetSq){
+                        targetFound = true;
+                        break;
+                    }
+
+                    // check whether blocker exists
+                    if ((uint(1) << sq & blockerBoard) > 0){
+                        break;
+                    }
+
+                    if (r == 0 || f == 0){
+                        break;
+                    }
+                    r -= 1;
+                    f -= 1;
+                }
+            }
+            if (sr > tr && sf < tf){
+                uint r = sr - 1;
+                uint f = sf + 1;
+                while (r >= 0 && f <= 7){
+                    uint sq = (r * 8) + f;
+                    
+                    if (sq == targetSq){
+                        targetFound = true;
+                        break;
+                    }
+
+                    // check whether blocker exists
+                    if ((uint(1) << sq & blockerBoard) > 0){
+                        break;
+                    }
+
+                    if (r == 0){
+                        break;
+                    }
+                    r -= 1;
+                    f += 1;
+                }
+            }
+
+            // if targetSq not found, then targetSq isn't positioned diagonally to bishop's pos
+            require(targetFound);
+        }
 
         // queen
-
-        emit log_uint(blackBoard);
-        emit log_uint(whiteBoard);
     }
 }
 
