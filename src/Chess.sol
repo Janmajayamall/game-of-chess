@@ -322,6 +322,16 @@ contract Chess is DSTest {
 
         // blockerBitboard 
         uint64 blockerBoard = getBlockerBoard(bitboards);
+
+        // queen
+        if (sourcePiece == Piece.Q || sourcePiece == Piece.q){
+            // if rank or file matches, then move is like a rook, otherwise bishop
+            if ((sourceSq % 8 == targetSq % 8) || (sourceSq / 8 == targetSq / 8)){
+                sourcePiece == Piece.R;
+            }else {
+                sourcePiece == Piece.B;
+            }
+        }
     
         // bishop
         if (sourcePiece == Piece.B || sourcePiece == Piece.b) {
@@ -377,7 +387,7 @@ contract Chess is DSTest {
                 }
             }
             if (sr > tr && sf > tf) {
-                uint r = sr + 1;
+                uint r = sr - 1;
                 uint f = sf - 1;
                 while (r >= 0 && f >= 0){
                     uint sq = (r * 8) + f;
@@ -437,11 +447,10 @@ contract Chess is DSTest {
             bool targetFound = false;
 
             // check target is daigonal & there exist no blockers
-            if (sr < tr && sf < tf){
-                uint r = sr + 1;
+            if (sr == tr && sf < tf){
                 uint f = sf + 1;
-                while (r <= 7 && f <= 7){
-                    uint sq = (r * 8) + f;
+                while (f <= 7){
+                    uint sq = (sr * 8) + f;
 
                     if (sq == targetSq){
                         targetFound = true;
@@ -453,15 +462,13 @@ contract Chess is DSTest {
                         break;
                     }
 
-                    r += 1;
                     f += 1;
                 }
             }
-            if (sr < tr && sf > tf) {
-                uint r = sr + 1;
+            if (sr == tr && sf > tf) {
                 uint f = sf - 1;
-                while (r <= 7 && f >= 0){
-                    uint sq = (r * 8) + f;
+                while (f >= 0){
+                    uint sq = (sr * 8) + f;
 
                     if (sq == targetSq){
                         targetFound = true;
@@ -473,42 +480,17 @@ contract Chess is DSTest {
                         break;
                     }
 
-                    r += 1;
                     if (f == 0){
                         break;
                     }
                     f -= 1;
                 }
             }
-            if (sr > tr && sf > tf) {
-                uint r = sr + 1;
-                uint f = sf - 1;
-                while (r >= 0 && f >= 0){
-                    uint sq = (r * 8) + f;
-
-                    if (sq == targetSq){
-                        targetFound = true;
-                        break;
-                    }
-
-                    // check whether blocker exists
-                    if ((uint(1) << sq & blockerBoard) > 0){
-                        break;
-                    }
-
-                    if (r == 0 || f == 0){
-                        break;
-                    }
-                    r -= 1;
-                    f -= 1;
-                }
-            }
-            if (sr > tr && sf < tf){
+            if (sr > tr && sf == tf) {
                 uint r = sr - 1;
-                uint f = sf + 1;
-                while (r >= 0 && f <= 7){
-                    uint sq = (r * 8) + f;
-                    
+                while (r >= 0){
+                    uint sq = (r * 8) + sf;
+
                     if (sq == targetSq){
                         targetFound = true;
                         break;
@@ -523,15 +505,30 @@ contract Chess is DSTest {
                         break;
                     }
                     r -= 1;
-                    f += 1;
+                }
+            }
+            if (sr < tr && sf == tf){
+                uint r = sr + 1;
+                while (r <= 7){
+                    uint sq = (r * 8) + sf;
+                    
+                    if (sq == targetSq){
+                        targetFound = true;
+                        break;
+                    }
+
+                    // check whether blocker exists
+                    if ((uint(1) << sq & blockerBoard) > 0){
+                        break;
+                    }
+
+                    r += 1;
                 }
             }
 
             // if targetSq not found, then targetSq isn't positioned diagonally to bishop's pos
             require(targetFound);
         }
-
-        // queen
     }
 }
 
