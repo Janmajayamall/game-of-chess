@@ -38,22 +38,6 @@ contract Chess is DSTest {
 
 
     function test_isMoveValid() external returns (bool) {
-        uint side = 0;
-        uint sourceSq = 0;
-        uint targetSq = 0;
-        uint moveBySq = 0;
-        bool moveLeftShift = false; // left shift is down the board & right shift is up the board
-        if ( targetSq > sourceSq){
-            moveBySq = targetSq - sourceSq;
-            moveLeftShift = true;
-        }else if ( targetSq < sourceSq){
-            moveBySq = sourceSq - targetSq;
-            moveLeftShift = false;
-        }
-        if (moveBySq == 0){
-            return false; // no move specified
-        }
-
         // accept a move, extract source and target -> store then in 3 uint256s 
         uint64[12] memory bitboards =  [
             // black pos
@@ -88,8 +72,7 @@ contract Chess is DSTest {
         whiteBoard |= bitboards[uint(Piece.Q)];
         whiteBoard |= bitboards[uint(Piece.K)];
 
-        // not files
-        // not A file constant
+        // not files, for move validations
         uint64 notAFile = 18374403900871474942;
         uint64 notHFile = 9187201950435737471;
         uint64 notHGFile = 4557430888798830399;
@@ -97,58 +80,165 @@ contract Chess is DSTest {
 
         // for a normal piece move
 
+        uint side = 0; // white = 0; black = 1
+        uint64 sourceSq = 0;
+        uint64 targetSq = 0;
+        uint64 moveBySq = 0;
+        bool moveLeftShift = false; // left shift is down the board & right shift is up the board
+        if ( targetSq > sourceSq){
+            moveBySq = targetSq - sourceSq;
+            moveLeftShift = true;
+        }else if ( targetSq < sourceSq){
+            moveBySq = sourceSq - targetSq;
+            moveLeftShift = false;
+        }
+        if (moveBySq == 0){
+            return false; // no move specified
+        }
 
-        // check that target isn't occupied by some piece on the same side
-        if (side == 0 && (1 << targetSq & whiteBoard) > 0){
-            return false;
-        }
-        if (side == 1 && (1 << targetSq & blackBoard) > 0){
-            return false;
-        }
+        // // check that target isn't occupied by some piece on the same side
+        // if (side == 0 && (1 << targetSq & whiteBoard) > 0){
+        //     return false;
+        // }
+        // if (side == 1 && (1 << targetSq & blackBoard) > 0){
+        //     return false;
+        // }
 
         // check is transition valid depending on the piece being moved
         // find the piece being moved
         Piece sourcePiece = Piece.uk;
+        Piece targetPiece = Piece.uk;
         uint64 sourcePieceBitBoard;
         for (uint64 index = 1; index < bitboards.length; index++) {
             uint64 board = bitboards[index];
             if ((1 << sourceSq & board)>0){
                 // piece exists
                 sourcePiece = Piece(index);
-                sourcePieceBitBoard = bitboards[index];
+                sourcePieceBitBoard = uint64(1) << sourceSq;
             }
         }
         // no piece present at sourceSq
         if (sourcePiece == Piece.uk){
             return false;
         }
-        // piece present does not belongs to the playing side
-        if ((side == 0 && uint(sourcePiece) < 6 )||( side == 1 && uint(sourcePiece) >= 6 )){
-            return false;
-        }
+
+        /**
+        Check that target piece & source piece do not belong to the same side
+         */
+        // // piece present does not belongs to the playing side
+        // if ((side == 0 && uint(sourcePiece) < 6 )||( side == 1 && uint(sourcePiece) >= 6 )){
+        //     return false;
+        // }
 
 
         if (sourcePiece == Piece.K){
             // moveBy can only be 8, 9, 7, 1
-            if (moveBySq != 8 || moveBySq != 9 || moveBySq != 7 || moveBySq != 1){
+            if (moveBySq != 8 && moveBySq != 9 && moveBySq != 7 && moveBySq != 1){
                 return false;
             }
 
-            // can only move inside the board
-            if (sourcePieceBitBoard << uint64(moveBySq) == 0){
+            // downwards
+            if (moveLeftShift == true){
+                // can only move inside the board
+                if (sourcePieceBitBoard << uint64(moveBySq) == 0){
+                    return false;
+                }
+
+                // check falling off right edge
+                if (moveBySq == 9 && (sourcePieceBitBoard << 9 & notAFile) == 0){
+                    return false;
+                }
+
+                // check falling off left edge
+                if (moveBySq == 7 && (sourcePieceBitBoard << 7 & notHFile) == 0){
+                    return false;
+                }
+            }
+
+            // upwards
+            if (moveLeftShift == false){
+                // can only move inside the board
+                if (sourcePieceBitBoard >> uint64(moveBySq) == 0){
+                    return false;
+                }
+
+                // check falling off right edge
+                if (moveBySq == 7 && (sourcePieceBitBoard >> 7 & notAFile) == 0){
+                    return false;
+                }
+
+                // check falling off left edge 
+                if (moveBySq == 9 && (sourcePieceBitBoard >> 9 & notHFile) == 0){
+                    return false;
+                }
+            }
+        }
+
+        // white pawns
+        if (sourcePiece == Piece.P){
+            if (moveBySq != 8 && moveBySq != 9 && moveBySq != 7){
+                return false;
+            }
+
+            // cannot move dignol, unless target piece exists
+            if ((moveBySq == 9 || moveBySq == 7) && targetPiece == Piece.uk){
+                return false;
+            }
+
+            // white pawns can only move upwards
+            if (moveLeftShift != false){
+                return false;
+            }
+
+            // cannot go out of the board; white pawns can't move forward when on rank 8
+            if (sourcePieceBitBoard >> moveBySq == 0){
                 return false;
             }
 
             // check falling off right edge
-            if (moveBySq == 7 && (sourcePieceBitBoard << 9 & notAFile) == 0){
+            if (moveBySq == 7 && (sourcePieceBitBoard >> 7 & notAFile) == 0){
                 return false;
             }
 
             // check falling off left edge
-            if (moveBySq == 9 && (sourcePieceBitBoard << 9 & notHFile) == 0){
+            if (moveBySq == 9 && (sourcePieceBitBoard >> 9 & notHFile) == 0){
                 return false;
             }
-        }
+        }   
+
+        // black pawns
+        if (sourcePiece == Piece.p){
+            if (moveBySq != 8 && moveBySq != 9 && moveBySq != 7){
+                return false;
+            }
+
+            // cannot move diagnol, unless target piece exists
+            if ((moveBySq == 9 || moveBySq == 7) && targetPiece == Piece.uk){
+                return false;
+            }
+
+            // black pawns can only move downwards
+            if (moveLeftShift != true){
+                return false;
+            }
+
+            // cannot go out of the board; black pawns can't move forward when on rank 1
+            if (sourcePieceBitBoard << moveBySq == 0){
+                return false;
+            }
+
+            // check falling off right edge
+            if (moveBySq == 9 && (sourcePieceBitBoard << 9 & notAFile) == 0){
+                return false;
+            }
+
+            // check falling off right edge
+            if (moveBySq == 7 && (sourcePieceBitBoard << 7 & notHFile) == 0){
+                return false;
+            }
+        } 
+
+        //   
 
 
         emit log_uint(blackBoard);
