@@ -196,6 +196,50 @@ contract Chess is DSTest {
 
         Move memory move = decodeMove(23, bitboards);
 
+        if (move.moveFlag == MoveFlag.DoublePush){
+            // should be pawn
+            if (move.sourcePiece != Piece.P && move.sourcePiece != Piece.p){
+                return false;
+            }
+
+            // mmoveBy should be 16
+            if (move.moveBySq != 16){
+                return false;
+            }
+
+            // white pawn
+            if (move.sourcePiece == Piece.P){
+                // move upwards
+                if (move.moveLeftShift != false){
+                    return false;
+                }
+
+                // pawn shouldn't have moved before; 
+                // 71776119061217280 is initial pos of white pawns on board
+                if (move.sourcePieceBitBoard & 71776119061217280 == 0){
+                    return false;
+                }
+            }
+
+            // black pawn
+            if (move.sourcePiece == Piece.p){
+                // move downwards
+                if (move.moveLeftShift != true){
+                    return false;
+                }
+
+                // pawn shouldn't have moved before; 
+                // 65280 is initial pos of black pawns on board
+                if (move.sourcePieceBitBoard & 65280 == 0){
+                    return false;
+                }
+            } 
+
+            return true;
+        }
+
+
+
         // king
         if (move.sourcePiece == Piece.K){
             // moveBy can only be 8, 9, 7, 1
