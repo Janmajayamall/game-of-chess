@@ -238,7 +238,59 @@ contract Chess is DSTest {
             }
         } 
 
-        //   
+        // knight
+        if (sourcePiece == Piece.K || sourcePiece == Piece.k) {
+            if (moveBySq != 17 && moveBySq != 15 && moveBySq != 6 && moveBySq != 10) {
+                return false;
+            }
+
+            // downwards
+            if (moveLeftShift == true){
+                // check falling off right edge
+                if (moveBySq == 17 && (sourcePieceBitBoard <<  17 & notAFile) == 0){
+                    return false;
+                }
+
+                // check falling off right edge (2 lvl deep)
+                if (moveBySq == 10 && (sourcePieceBitBoard <<  10 & notABFile) == 0){
+                    return false;
+                }
+
+                // check falling off left edge
+                if (moveBySq == 15 && (sourcePieceBitBoard <<  15 & notHFile) == 0){
+                    return false;
+                }
+
+                // check falling off left edge (2 lvl deep)
+                if (moveBySq == 6 && (sourcePieceBitBoard <<  6 & notHGFile) == 0){
+                    return false;
+                }
+            }
+
+            // upwards
+            if (moveLeftShift == false){
+                // check falling off right edge
+                if (moveBySq == 15 && (sourcePieceBitBoard >> 15 & notAFile) == 0){
+                    return false;
+                }
+
+                // check falling off right edgen (2 lvl deep)
+                if (moveBySq == 6 && (sourcePieceBitBoard >> 6 & notABFile) == 0){
+                    return false;
+                }
+
+                // check falling off left edge
+                if (moveBySq == 17 && (sourcePieceBitBoard >> 17 & notHFile) == 0){
+                    return false;
+                }
+
+                // check falling off left edge (2 lvl deep)
+                if (moveBySq == 10 && (sourcePieceBitBoard >> 10 & notHGFile) == 0){
+                    return false;
+                }
+            }
+
+        }
 
 
         emit log_uint(blackBoard);
