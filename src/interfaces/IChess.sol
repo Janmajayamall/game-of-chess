@@ -41,6 +41,9 @@ interface IChess {
     }
 
     struct GameState {
+        // bitboards
+        uint64[12] bitboards;
+
         // state
         uint8 state; // 0 -> uninitialised, 1 -> active, 2 -> ended
 

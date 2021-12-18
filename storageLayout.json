@@ -1,0 +1,219 @@
+{
+	"storage": [
+		{
+			"astId": 6,
+			"contract": "src/Chess.sol:Chess",
+			"label": "isActive",
+			"offset": 0,
+			"slot": "0",
+			"type": "t_bool"
+		},
+		{
+			"astId": 11,
+			"contract": "src/Chess.sol:Chess",
+			"label": "gamesEncodedBitboards",
+			"offset": 0,
+			"slot": "1",
+			"type": "t_mapping(t_uint256,t_struct(EncodedBitboards)4359_storage)"
+		},
+		{
+			"astId": 16,
+			"contract": "src/Chess.sol:Chess",
+			"label": "gamesState",
+			"offset": 0,
+			"slot": "2",
+			"type": "t_mapping(t_uint256,t_struct(GameState)4380_storage)"
+		},
+		{
+			"astId": 20,
+			"contract": "src/Chess.sol:Chess",
+			"label": "whitePawnAttacks",
+			"offset": 0,
+			"slot": "3",
+			"type": "t_mapping(t_uint256,t_uint64)"
+		},
+		{
+			"astId": 24,
+			"contract": "src/Chess.sol:Chess",
+			"label": "blackPawnAttacks",
+			"offset": 0,
+			"slot": "4",
+			"type": "t_mapping(t_uint256,t_uint64)"
+		},
+		{
+			"astId": 28,
+			"contract": "src/Chess.sol:Chess",
+			"label": "kingAttacks",
+			"offset": 0,
+			"slot": "5",
+			"type": "t_mapping(t_uint256,t_uint64)"
+		},
+		{
+			"astId": 32,
+			"contract": "src/Chess.sol:Chess",
+			"label": "knightAttacks",
+			"offset": 0,
+			"slot": "6",
+			"type": "t_mapping(t_uint256,t_uint64)"
+		}
+	],
+	"types": {
+		"t_array(t_uint64)12_storage": {
+			"base": "t_uint64",
+			"encoding": "inplace",
+			"label": "uint64[12]",
+			"numberOfBytes": "96"
+		},
+		"t_bool": {
+			"encoding": "inplace",
+			"label": "bool",
+			"numberOfBytes": "1"
+		},
+		"t_mapping(t_uint256,t_struct(EncodedBitboards)4359_storage)": {
+			"encoding": "mapping",
+			"key": "t_uint256",
+			"label": "mapping(uint256 => struct IChess.EncodedBitboards)",
+			"numberOfBytes": "32",
+			"value": "t_struct(EncodedBitboards)4359_storage"
+		},
+		"t_mapping(t_uint256,t_struct(GameState)4380_storage)": {
+			"encoding": "mapping",
+			"key": "t_uint256",
+			"label": "mapping(uint256 => struct IChess.GameState)",
+			"numberOfBytes": "32",
+			"value": "t_struct(GameState)4380_storage"
+		},
+		"t_mapping(t_uint256,t_uint64)": {
+			"encoding": "mapping",
+			"key": "t_uint256",
+			"label": "mapping(uint256 => uint64)",
+			"numberOfBytes": "32",
+			"value": "t_uint64"
+		},
+		"t_struct(EncodedBitboards)4359_storage": {
+			"encoding": "inplace",
+			"label": "struct IChess.EncodedBitboards",
+			"members": [
+				{
+					"astId": 4354,
+					"contract": "src/Chess.sol:Chess",
+					"label": "firstPieceB",
+					"offset": 0,
+					"slot": "0",
+					"type": "t_uint256"
+				},
+				{
+					"astId": 4356,
+					"contract": "src/Chess.sol:Chess",
+					"label": "secondPieceB",
+					"offset": 0,
+					"slot": "1",
+					"type": "t_uint256"
+				},
+				{
+					"astId": 4358,
+					"contract": "src/Chess.sol:Chess",
+					"label": "thirdPieceB",
+					"offset": 0,
+					"slot": "2",
+					"type": "t_uint256"
+				}
+			],
+			"numberOfBytes": "96"
+		},
+		"t_struct(GameState)4380_storage": {
+			"encoding": "inplace",
+			"label": "struct IChess.GameState",
+			"members": [
+				{
+					"astId": 4363,
+					"contract": "src/Chess.sol:Chess",
+					"label": "bitboards",
+					"offset": 0,
+					"slot": "0",
+					"type": "t_array(t_uint64)12_storage"
+				},
+				{
+					"astId": 4365,
+					"contract": "src/Chess.sol:Chess",
+					"label": "state",
+					"offset": 0,
+					"slot": "3",
+					"type": "t_uint8"
+				},
+				{
+					"astId": 4367,
+					"contract": "src/Chess.sol:Chess",
+					"label": "side",
+					"offset": 1,
+					"slot": "3",
+					"type": "t_uint8"
+				},
+				{
+					"astId": 4369,
+					"contract": "src/Chess.sol:Chess",
+					"label": "winner",
+					"offset": 2,
+					"slot": "3",
+					"type": "t_uint8"
+				},
+				{
+					"astId": 4371,
+					"contract": "src/Chess.sol:Chess",
+					"label": "enpassantSq",
+					"offset": 3,
+					"slot": "3",
+					"type": "t_uint64"
+				},
+				{
+					"astId": 4373,
+					"contract": "src/Chess.sol:Chess",
+					"label": "bkC",
+					"offset": 11,
+					"slot": "3",
+					"type": "t_bool"
+				},
+				{
+					"astId": 4375,
+					"contract": "src/Chess.sol:Chess",
+					"label": "bqC",
+					"offset": 12,
+					"slot": "3",
+					"type": "t_bool"
+				},
+				{
+					"astId": 4377,
+					"contract": "src/Chess.sol:Chess",
+					"label": "wkC",
+					"offset": 13,
+					"slot": "3",
+					"type": "t_bool"
+				},
+				{
+					"astId": 4379,
+					"contract": "src/Chess.sol:Chess",
+					"label": "wqC",
+					"offset": 14,
+					"slot": "3",
+					"type": "t_bool"
+				}
+			],
+			"numberOfBytes": "128"
+		},
+		"t_uint256": {
+			"encoding": "inplace",
+			"label": "uint256",
+			"numberOfBytes": "32"
+		},
+		"t_uint64": {
+			"encoding": "inplace",
+			"label": "uint64",
+			"numberOfBytes": "8"
+		},
+		"t_uint8": {
+			"encoding": "inplace",
+			"label": "uint8",
+			"numberOfBytes": "1"
+		}
+	}
+}

@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
-import "ds-test/test.sol";
+// import "ds-test/test.sol";
 import "./interfaces/IChess.sol";
 
-contract Chess is IChess, DSTest {
+contract Chess is IChess {
 
-    // game id => gamestate & game's encoded bitboards
-    mapping(uint => EncodedBitboards) gamesEncodedBitboards;
+    bool isActive;
+
+    // gameId => game's state
     mapping(uint => GameState) gamesState;
 
     // attacking squares of non-sliding pieces
@@ -15,51 +16,6 @@ contract Chess is IChess, DSTest {
     mapping(uint => uint64) blackPawnAttacks;
     mapping(uint => uint64) kingAttacks;
     mapping(uint => uint64) knightAttacks;
-
-    function decodeBitboards(EncodedBitboards memory eBitboards) internal pure returns (uint64[12] memory bitboards){
-        // handling first piece
-        bitboards[uint(Piece.r)] = uint64(eBitboards.firstPieceB);
-        bitboards[uint(Piece.b)] = uint64(eBitboards.firstPieceB >> 64);
-        bitboards[uint(Piece.n)] = uint64(eBitboards.firstPieceB >> 128);
-        bitboards[uint(Piece.p)] = uint64(eBitboards.firstPieceB >> 192);
-
-        // handling second piece
-        bitboards[uint(Piece.K)] = uint64(eBitboards.secondPieceB);
-        bitboards[uint(Piece.Q)] = uint64(eBitboards.secondPieceB >> 64);
-        bitboards[uint(Piece.k)] = uint64(eBitboards.secondPieceB >> 128);
-        bitboards[uint(Piece.q)] = uint64(eBitboards.secondPieceB >> 192);
-
-        // handling third piece
-        bitboards[uint(Piece.R)] = uint64(eBitboards.thirdPieceB);
-        bitboards[uint(Piece.B)] = uint64(eBitboards.thirdPieceB >> 64);
-        bitboards[uint(Piece.N)] = uint64(eBitboards.thirdPieceB >> 128);
-        bitboards[uint(Piece.P)] = uint64(eBitboards.thirdPieceB >> 192);
-    }
-
-    function encodeBitboards(uint64[12] memory bitboards) internal pure returns (EncodedBitboards memory eBitboards){
-        // handling first piece
-        eBitboards.firstPieceB |= uint256(bitboards[uint(Piece.p)]) << 192;
-        eBitboards.firstPieceB |= uint256(bitboards[uint(Piece.n)]) << 128;
-        eBitboards.firstPieceB |= uint256(bitboards[uint(Piece.b)]) << 64;
-        eBitboards.firstPieceB |= uint256(bitboards[uint(Piece.r)]);
-
-        // handling second piece
-        eBitboards.secondPieceB |= uint256(bitboards[uint(Piece.q)]) << 192;
-        eBitboards.secondPieceB |= uint256(bitboards[uint(Piece.k)]) << 128;
-        eBitboards.secondPieceB |= uint256(bitboards[uint(Piece.Q)]) << 64;
-        eBitboards.secondPieceB |= uint256(bitboards[uint(Piece.K)]);
-
-        // handling third piece
-        eBitboards.thirdPieceB |= uint256(bitboards[uint(Piece.P)]) << 192;
-        eBitboards.thirdPieceB |= uint256(bitboards[uint(Piece.N)]) << 128;
-        eBitboards.thirdPieceB |= uint256(bitboards[uint(Piece.B)]) << 64;
-        eBitboards.thirdPieceB |= uint256(bitboards[uint(Piece.R)]);
-    }
-
-    // function updateAttackWithSquare(uint64 attackSquare, uint64 attacksBitboard) internal returns (uint64){
-    //     uint64 sqPos = uint64(1) << attackSquare;
-    //     return attacksBitboard |= sqPos;
-    // }
 
     function getBishopAttacks(uint64 square, uint blockboard) internal pure returns (uint64 attacks){
         uint64 sr = square / 8;
@@ -166,6 +122,25 @@ contract Chess is IChess, DSTest {
                 if (f == 0) break;
                 f -= 1;
             }
+        }
+    }
+
+    function getPawnAttacks(uint64 square, uint side) internal pure returns (uint64 attacks){
+        // not files, for move validations
+        uint64 notAFile = 18374403900871474942;
+        uint64 notHFile = 9187201950435737471;
+
+        uint64 sqBitboard = uint64(1) << square;
+
+        // white pawn
+        if (side == 0){
+            if (sqBitboard >> 7 & notAFile != 0) attacks |= sqBitboard >> 7;
+            if (sqBitboard >> 9 & notHFile != 0) attacks |= sqBitboard >> 9;
+        }
+        // black pawn
+        else {
+            if (sqBitboard << 9 & notAFile != 0) attacks |= sqBitboard << 9;
+            if (sqBitboard << 7 & notHFile != 0) attacks |= sqBitboard >> 7;
         }
     }
 
@@ -290,7 +265,7 @@ contract Chess is IChess, DSTest {
         blockerboard |= bitboards[uint(Piece.K)];
     }
 
-    function isMoveValid(GameState memory gameState, uint64[12] memory bitboards, Move memory move) public view returns (bool) {    
+    function isMoveValid(GameState memory gameState, Move memory move) public view returns (bool) {    
         if (gameState.state != 1){
             return false;
         }
@@ -313,7 +288,7 @@ contract Chess is IChess, DSTest {
             return false;
         }
 
-        uint64 blockerboard = getBlockerboard(bitboards);
+        uint64 blockerboard = getBlockerboard(gameState.bitboards);
 
         // not files, for move validations
         uint64 notAFile = 18374403900871474942;
@@ -345,15 +320,15 @@ contract Chess is IChess, DSTest {
                     }
 
                     // rook should be on original pos
-                    if (1 << 63 & bitboards[uint(Piece.R)] == 0){
+                    if (1 << 63 & gameState.bitboards[uint(Piece.R)] == 0){
                         return false;
                     }
 
                     // no attacks to king and thru passage
                     if (
-                        isSquareAttacked(60, move.sourcePiece, bitboards, blockerboard) ||
-                        isSquareAttacked(61, move.sourcePiece, bitboards, blockerboard) ||
-                        isSquareAttacked(62, move.sourcePiece, bitboards, blockerboard)
+                        isSquareAttacked(60, move.sourcePiece, gameState.bitboards, blockerboard) ||
+                        isSquareAttacked(61, move.sourcePiece, gameState.bitboards, blockerboard) ||
+                        isSquareAttacked(62, move.sourcePiece, gameState.bitboards, blockerboard)
                     ){
                         return false;
                     }
@@ -374,15 +349,15 @@ contract Chess is IChess, DSTest {
                     }
                     
                     // rook should on original pos
-                    if (1 << 56 & bitboards[uint(Piece.R)] == 0){
+                    if (1 << 56 & gameState.bitboards[uint(Piece.R)] == 0){
                         return false;
                     }
 
                     // no attacks to king and thru passage
                     if (
-                        isSquareAttacked(60, move.sourcePiece, bitboards, blockerboard) ||
-                        isSquareAttacked(59, move.sourcePiece, bitboards, blockerboard) ||
-                        isSquareAttacked(58, move.sourcePiece, bitboards, blockerboard)
+                        isSquareAttacked(60, move.sourcePiece, gameState.bitboards, blockerboard) ||
+                        isSquareAttacked(59, move.sourcePiece, gameState.bitboards, blockerboard) ||
+                        isSquareAttacked(58, move.sourcePiece, gameState.bitboards, blockerboard)
                     ){
                         return false;
                     }
@@ -418,15 +393,15 @@ contract Chess is IChess, DSTest {
                     }
 
                     // rook should be on 7
-                    if (1 << 7 & bitboards[uint(Piece.r)] == 0){
+                    if (1 << 7 & gameState.bitboards[uint(Piece.r)] == 0){
                         return false;
                     }
 
                     // no attacks on king sq & thru sqaures
                     if (
-                        isSquareAttacked(4, move.sourcePiece, bitboards, blockerboard) ||
-                        isSquareAttacked(5, move.sourcePiece, bitboards, blockerboard) ||
-                        isSquareAttacked(6, move.sourcePiece, bitboards, blockerboard) 
+                        isSquareAttacked(4, move.sourcePiece, gameState.bitboards, blockerboard) ||
+                        isSquareAttacked(5, move.sourcePiece, gameState.bitboards, blockerboard) ||
+                        isSquareAttacked(6, move.sourcePiece, gameState.bitboards, blockerboard) 
                     ){
                         return false;
                     }
@@ -448,15 +423,15 @@ contract Chess is IChess, DSTest {
                     }
 
                     // rook should be on 0 
-                    if (1 & bitboards[uint(Piece.r)] == 0){
+                    if (1 & gameState.bitboards[uint(Piece.r)] == 0){
                         return false;
                     }
 
                     // no attacks on king sq & thru squares
                     if (
-                        isSquareAttacked(4, move.sourcePiece, bitboards, blockerboard) ||
-                        isSquareAttacked(3, move.sourcePiece, bitboards, blockerboard) ||
-                        isSquareAttacked(2, move.sourcePiece, bitboards, blockerboard) 
+                        isSquareAttacked(4, move.sourcePiece, gameState.bitboards, blockerboard) ||
+                        isSquareAttacked(3, move.sourcePiece, gameState.bitboards, blockerboard) ||
+                        isSquareAttacked(2, move.sourcePiece, gameState.bitboards, blockerboard) 
                     ){
                         return false;
                     }
@@ -953,13 +928,11 @@ contract Chess is IChess, DSTest {
 
     function applyMove(uint gameId, uint24 moveValue) external {
         GameState memory gameState = gamesState[gameId];
-        EncodedBitboards memory encodedBitboards = gamesEncodedBitboards[gameId];
 
-        uint64[12] memory bitboards = decodeBitboards(encodedBitboards);
-        Move memory move = decodeMove(moveValue, bitboards);
+        Move memory move = decodeMove(moveValue, gameState.bitboards);
 
         // check whether move is valid
-        require(isMoveValid(gameState, bitboards, move));
+        require(isMoveValid(gameState, move));
 
         // check game over
         if (move.targetPiece == Piece.K){
@@ -974,19 +947,19 @@ contract Chess is IChess, DSTest {
         // game not over
         else {
             // update source piece pos to target sq
-            bitboards[uint(move.sourcePiece)] = (bitboards[uint(move.sourcePiece)] | uint64(1) << move.targetSq) & ~uint64(1) << move.sourceSq;
+            gameState.bitboards[uint(move.sourcePiece)] = (gameState.bitboards[uint(move.sourcePiece)] | uint64(1) << move.targetSq) & ~uint64(1) << move.sourceSq;
 
             // remove target piece from target sq
             if (move.targetPiece != Piece.uk ){
-                bitboards[uint(move.targetPiece)] &= ~uint64(1) << move.targetSq;
+                gameState.bitboards[uint(move.targetPiece)] &= ~uint64(1) << move.targetSq;
             }
 
             // update pawn promotion
             if (move.moveFlag == MoveFlag.PawnPromotion){
                 // add promoted piece at target sq
-                bitboards[uint(move.promotedToPiece)] |= uint64(1) << move.targetSq;
+                gameState.bitboards[uint(move.promotedToPiece)] |= uint64(1) << move.targetSq;
                 // remove pawn from target sq
-                bitboards[uint(move.sourcePiece)] &= ~uint64(1) << move.targetSq;
+                gameState.bitboards[uint(move.sourcePiece)] &= ~uint64(1) << move.targetSq;
             }
             
             // update enpassant
@@ -1026,9 +999,6 @@ contract Chess is IChess, DSTest {
             }else{
                 gameState.side = 0;
             }
-
-            // update game's bitboards
-            gamesEncodedBitboards[gameId] = encodeBitboards(bitboards);
         }
 
         // update game's state
@@ -1047,26 +1017,16 @@ contract Chess is IChess, DSTest {
         _gameState.wkC = true;
         _gameState.wqC = true;
 
-        // initialise game bitboards to default state
-        EncodedBitboards memory _encodedBitboards;
-        _encodedBitboards.firstPieceB = 409769201286042520263222792183213245581751010221489323247665281;
-        _encodedBitboards.secondPieceB = 50216813883093446116141467080362626071217220652607417090048;
-        _encodedBitboards.thirdPieceB = 450546001518488005662056153843822856010275062222266303656230578156487049216;
-
-        gamesState[gameId] = _gameState;
-        gamesEncodedBitboards[gameId] = _encodedBitboards;
-    }
-
-    function getEncodedBitboardsInitialState() external pure returns (EncodedBitboards memory) {
-        uint64[12] memory bitboards =  [
-            // black pos
+        // initia bitbaords
+        _gameState.bitboards = [
+            // initial black pos
             65280,
             66,
             36,
             129,
             8,
             16,
-            // white pos
+            // initial white pos
             71776119061217280,
             4755801206503243776,
             2594073385365405696,
@@ -1075,28 +1035,16 @@ contract Chess is IChess, DSTest {
             1152921504606846976
         ];
 
-        EncodedBitboards memory _encodedBitboards = encodeBitboards(bitboards);
-        return _encodedBitboards;
+        gamesState[gameId] = _gameState;
+    }
 
-        // emit log_named_uint("first", _encodedBitboards.firstPieceB);
-        // emit log_named_uint("second", _encodedBitboards.secondPieceB);
-        // emit log_named_uint("third", _encodedBitboards.thirdPieceB);
+    function activateContract() external {
+        require(!isActive, "Already activated");
+        
+        // setup attacking sqaures for non-sliding pieces
 
-        // assertTrue(false);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
