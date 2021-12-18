@@ -7,8 +7,7 @@ import "ds-test/test.sol";
 
 contract Chess is DSTest {
 
-    // 12 boards
-
+    // 12 pieces
     enum Piece { 
         p, n, b, r, q, k, P, N, B, R, Q, K, uk
     }
@@ -38,45 +37,105 @@ contract Chess is DSTest {
         PawnPromotion
     }
 
+    struct EncodedBoardState {
+        uint256 firstPieceB; // p, n, b, r 
+        uint256 secondPieceB; // q, k, Q, K
+        uint256 thirdPieceB; // P, N, B, R
+        uint8 castlings; // wq, wk, bq, bk,
+        uint64 enpassantSq;
+    }
+
+    struct BoardState {
+        uint64[12] bitboard;
+
+        // castling rights
+        bool bkC;
+        bool bqC;
+        bool wkC;
+        bool wqC;
+
+        // enpassant
+        uint64 enpassantSq;
+    }
+
+
+    /**
+        6 white bitboards
+        6 black bitboards
+
+        castling rights wq wk bq bk 
+
+        enpassant
+     */
+
+    // attacking squares of non-sliding pieces
     mapping(uint => uint64) whitePawnAttacks;
     mapping(uint => uint64) blackPawnAttacks;
     mapping(uint => uint64) kingAttacks;
     mapping(uint => uint64) knightAttacks;
 
-    // uint256[12] bitboards = [
-    //     // black pos
-    //     65280,
-    //     66,
-    //     36,
-    //     1,
-    //     8,
-    //     16,
-    //     // white pos
-    //     71776119061217280,
-    //     4755801206503243776,
-    //     1297036692682702848,
-    //     36028797018963968,
-    //     576460752303423488,
-    //     1152921504606846976
-    // ];
+    function decodeBoardState(EncodedBoardState memory eboardState) internal pure returns(BoardState memory boardState) {
+        // handling first piece
+        boardState.bitboard[uint(Piece.r)] = uint64(eboardState.firstPieceB);
+        boardState.bitboard[uint(Piece.b)] = uint64(eboardState.firstPieceB >> 64);
+        boardState.bitboard[uint(Piece.n)] = uint64(eboardState.firstPieceB >> 128);
+        boardState.bitboard[uint(Piece.p)] = uint64(eboardState.firstPieceB >> 192);
 
-    // function eall() internal returns (uint){
-    //     return 256;
-    // }
+        // handling second piece
+        boardState.bitboard[uint(Piece.K)] = uint64(eboardState.secondPieceB);
+        boardState.bitboard[uint(Piece.Q)] = uint64(eboardState.secondPieceB >> 64);
+        boardState.bitboard[uint(Piece.k)] = uint64(eboardState.secondPieceB >> 128);
+        boardState.bitboard[uint(Piece.q)] = uint64(eboardState.secondPieceB >> 192);
 
-    // function test_ecall() external {
-    //     uint f = eall();
-    // }
-    // function test_3ecall() external {
-    //     uint f = 256;
-    // }
+        // handling third piece
+        boardState.bitboard[uint(Piece.R)] = uint64(eboardState.thirdPieceB);
+        boardState.bitboard[uint(Piece.B)] = uint64(eboardState.thirdPieceB >> 64);
+        boardState.bitboard[uint(Piece.N)] = uint64(eboardState.thirdPieceB >> 128);
+        boardState.bitboard[uint(Piece.P)] = uint64(eboardState.thirdPieceB >> 192);
+
+        // castling rights
+        boardState.bkC = eboardState.castlings & 1 != 0;
+        boardState.bqC = eboardState.castlings >> 1 & 1 != 0;
+        boardState.wkC = eboardState.castlings >> 2 & 1 != 0;
+        boardState.wqC = eboardState.castlings >> 3 & 1 != 0;
+
+        boardState.enpassantSq = eboardState.enpassantSq;
+    }
+
+    function encodeBoardState(BoardState memory boardState) internal pure returns(EncodedBoardState memory eboardState){
+        // handling first piece
+        eboardState.firstPieceB |= uint256(boardState.bitboard[uint(Piece.p)]) << 192;
+        eboardState.firstPieceB |= uint256(boardState.bitboard[uint(Piece.n)]) << 128;
+        eboardState.firstPieceB |= uint256(boardState.bitboard[uint(Piece.b)]) << 64;
+        eboardState.firstPieceB |= uint256(boardState.bitboard[uint(Piece.r)]);
+
+        // handling second piece
+        eboardState.secondPieceB |= uint256(boardState.bitboard[uint(Piece.q)]) << 192;
+        eboardState.secondPieceB |= uint256(boardState.bitboard[uint(Piece.k)]) << 128;
+        eboardState.secondPieceB |= uint256(boardState.bitboard[uint(Piece.Q)]) << 64;
+        eboardState.secondPieceB |= uint256(boardState.bitboard[uint(Piece.K)]);
+
+        // handling third piece
+        eboardState.thirdPieceB |= uint256(boardState.bitboard[uint(Piece.P)]) << 192;
+        eboardState.thirdPieceB |= uint256(boardState.bitboard[uint(Piece.N)]) << 128;
+        eboardState.thirdPieceB |= uint256(boardState.bitboard[uint(Piece.B)]) << 64;
+        eboardState.thirdPieceB |= uint256(boardState.bitboard[uint(Piece.R)]);
+
+        // castling rights
+        eboardState.castlings |= boardState.wqC ? 1 << 3 : 0;
+        eboardState.castlings |= boardState.wkC ? 1 << 2 : 0;
+        eboardState.castlings |= boardState.bqC ? 1 << 1 : 0;
+        eboardState.castlings |= boardState.bkC ? 1 : 0;
+
+        eboardState.enpassantSq = boardState.enpassantSq;
+    }
 
     function updateAttackWithSquare(uint64 attackSquare, uint64 attacksBitboard) internal returns (uint64){
         uint64 sqPos = uint64(1) << attackSquare;
         return attacksBitboard |= sqPos;
     }
 
-    function getBishopAttacks(uint64 square, uint blockboard) internal view returns (uint64 attacks){
+    function getBishopAttacks(uint64 square, uint blockboard) internal pure returns (uint64 attacks){
         uint64 sr = square / 8;
         uint64 sf = square % 8;
 
@@ -135,7 +194,7 @@ contract Chess is DSTest {
         }
     }
 
-    function getRookAttacks(uint64 square, uint blockboard) internal view returns (uint64 attacks) {
+    function getRookAttacks(uint64 square, uint blockboard) internal pure returns (uint64 attacks) {
         uint64 sr = square / 8;
         uint64 sf = square % 8;
 
@@ -305,7 +364,7 @@ contract Chess is DSTest {
         blockerBoard |= bitboards[uint(Piece.K)];
     }
 
-    function test_isMoveValid() public returns (bool) {
+    function test_isMoveValid() public view returns (bool) {
         // accept a move, extract source and target -> store then in 3 uint256s 
         uint64[12] memory bitboards =  [
             // black pos
@@ -395,9 +454,9 @@ contract Chess is DSTest {
 
                     // no attacks to king and thru passage
                     if (
-                        isSquareAttacked(60, move.sourcePiece, bitboards) ||
-                        isSquareAttacked(61, move.sourcePiece, bitboards) ||
-                        isSquareAttacked(62, move.sourcePiece, bitboards)
+                        isSquareAttacked(60, move.sourcePiece, bitboards, blockerBoard) ||
+                        isSquareAttacked(61, move.sourcePiece, bitboards, blockerBoard) ||
+                        isSquareAttacked(62, move.sourcePiece, bitboards, blockerBoard)
                     ){
                         return false;
                     }
@@ -422,9 +481,9 @@ contract Chess is DSTest {
 
                      // no attacks to king and thru passage
                     if (
-                        isSquareAttacked(60, move.sourcePiece, bitboards) ||
-                        isSquareAttacked(59, move.sourcePiece, bitboards) ||
-                        isSquareAttacked(58, move.sourcePiece, bitboards)
+                        isSquareAttacked(60, move.sourcePiece, bitboards, blockerBoard) ||
+                        isSquareAttacked(59, move.sourcePiece, bitboards, blockerBoard) ||
+                        isSquareAttacked(58, move.sourcePiece, bitboards, blockerBoard)
                     ){
                         return false;
                     }
@@ -449,7 +508,7 @@ contract Chess is DSTest {
                 }
 
                 // targetSq can only be 2 or 6
-                if (move.targetSq != 2 && move.targetSq != 7){
+                if (move.targetSq != 2 && move.targetSq != 6){
                     return false;
                 }
 
@@ -464,9 +523,9 @@ contract Chess is DSTest {
 
                     // no attacks on king sq & thru sqaures
                     if (
-                        isSquareAttacked(4, move.sourcePiece, bitboards) ||
-                        isSquareAttacked(5, move.sourcePiece, bitboards) ||
-                        isSquareAttacked(6, move.sourcePiece, bitboards) 
+                        isSquareAttacked(4, move.sourcePiece, bitboards, blockerBoard) ||
+                        isSquareAttacked(5, move.sourcePiece, bitboards, blockerBoard) ||
+                        isSquareAttacked(6, move.sourcePiece, bitboards, blockerBoard) 
                     ){
                         return false;
                     }
@@ -490,11 +549,11 @@ contract Chess is DSTest {
 
                     // TODO king & rook should not have moved
 
-                    // no attacks on king sq & thru sqaures
+                    // no attacks on king sq & thru squares
                     if (
-                        isSquareAttacked(4, move.sourcePiece, bitboards) ||
-                        isSquareAttacked(3, move.sourcePiece, bitboards) ||
-                        isSquareAttacked(2, move.sourcePiece, bitboards) 
+                        isSquareAttacked(4, move.sourcePiece, bitboards, blockerBoard) ||
+                        isSquareAttacked(3, move.sourcePiece, bitboards, blockerBoard) ||
+                        isSquareAttacked(2, move.sourcePiece, bitboards, blockerBoard) 
                     ){
                         return false;
                     }
@@ -679,7 +738,6 @@ contract Chess is DSTest {
             }
 
         }
-
         
         // white pawns
         if (move.sourcePiece == Piece.P && (move.moveFlag == MoveFlag.NoFlag || move.moveFlag == MoveFlag.PawnPromotion)){
@@ -905,7 +963,7 @@ contract Chess is DSTest {
             
             bool targetFound = false;
 
-            // check target is daigonal & there exist no blockers
+            // target sq should be either in same file or rank & should not contains any blockers
             if (sr == tr && sf < tf){
                 uint f = sf + 1;
                 while (f <= 7){
@@ -924,7 +982,7 @@ contract Chess is DSTest {
                     f += 1;
                 }
             }
-            if (sr == tr && sf > tf) {
+            if (sr == tr && sf > tf && sf != 0) {
                 uint f = sf - 1;
                 while (f >= 0){
                     uint sq = (sr * 8) + f;
@@ -945,7 +1003,7 @@ contract Chess is DSTest {
                     f -= 1;
                 }
             }
-            if (sr > tr && sf == tf) {
+            if (sr > tr && sf == tf && sr != 0) {
                 uint r = sr - 1;
                 while (r >= 0){
                     uint sq = (r * 8) + sf;
@@ -980,15 +1038,14 @@ contract Chess is DSTest {
                     if ((uint(1) << sq & blockerBoard) > 0){
                         break;
                     }
-
                     r += 1;
                 }
             }
 
-            // if targetSq not found, then targetSq isn't positioned diagonally to bishop's pos
-            require(targetFound);
-        }
 
+            // if targetSq not found, then targetSq isn't valid
+            if (targetFound == false) return false;
+        }
     }
 
     function applyMove() external {
