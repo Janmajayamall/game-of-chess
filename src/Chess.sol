@@ -1,67 +1,10 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
-
-
 import "ds-test/test.sol";
+import "./interfaces/IChess.sol";
 
-contract Chess is DSTest {
-
-    // 12 pieces
-    enum Piece { 
-        p, n, b, r, q, k, P, N, B, R, Q, K, uk
-    }
-
-    struct Move {
-        uint64 sourceSq;
-        uint64 targetSq; 
-        uint64 moveBySq; 
-
-        uint64 sourcePieceBitBoard;
-        uint64 targetPieceBitBoard;
-
-        bool moveLeftShift; // left shift is down the board & right shift is up the board
-
-        Piece sourcePiece;
-        Piece targetPiece;
-        Piece promotedToPiece;
-
-        MoveFlag moveFlag;
-    }
-
-    enum MoveFlag {
-        NoFlag,
-        DoublePush,
-        Enpassant,
-        Castle,
-        PawnPromotion
-    }
-
-    struct EncodedBitboards {
-        uint256 firstPieceB; // p, n, b, r 
-        uint256 secondPieceB; // q, k, Q, K
-        uint256 thirdPieceB; // P, N, B, R
-    }
-
-    struct GameState {
-        // playing side
-        uint8 side; // 0 -> white, 1 -> black
-
-        // winner
-        uint8 winner; // 0 -> white, 1 -> black, 2 -> draw
-
-        // enpassant
-        uint64 enpassantSq;
-
-        // castling rights
-        bool bkC;
-        bool bqC;
-        bool wkC;
-        bool wqC;
-    }
-
- 
-
+contract Chess is IChess, DSTest {
 
     // attacking squares of non-sliding pieces
     mapping(uint => uint64) whitePawnAttacks;
@@ -327,7 +270,7 @@ contract Chess is DSTest {
         require(move.sourcePiece != Piece.uk, "Unknown Piece");
     }
 
-    function getBlockerBoard(uint64[12] memory bitboards) internal pure returns (uint64 blockerboard){
+    function getBlockerboard(uint64[12] memory bitboards) internal pure returns (uint64 blockerboard){
         blockerboard |= bitboards[uint(Piece.p)];
         blockerboard |= bitboards[uint(Piece.n)];
         blockerboard |= bitboards[uint(Piece.b)];
@@ -343,27 +286,27 @@ contract Chess is DSTest {
         blockerboard |= bitboards[uint(Piece.K)];
     }
 
-    function getWhiteboard(uint64[12] memory bitboards) internal pure returns (uint64){
-        uint64 board;
-        board |= bitboards[uint(Piece.P)];
-        board |= bitboards[uint(Piece.N)];
-        board |= bitboards[uint(Piece.B)];
-        board |= bitboards[uint(Piece.R)];
-        board |= bitboards[uint(Piece.Q)];
-        board |= bitboards[uint(Piece.K)];
-        return board;
-    }
+    // function getWhiteboard(uint64[12] memory bitboards) internal pure returns (uint64){
+    //     uint64 board;
+    //     board |= bitboards[uint(Piece.P)];
+    //     board |= bitboards[uint(Piece.N)];
+    //     board |= bitboards[uint(Piece.B)];
+    //     board |= bitboards[uint(Piece.R)];
+    //     board |= bitboards[uint(Piece.Q)];
+    //     board |= bitboards[uint(Piece.K)];
+    //     return board;
+    // }
 
-    function getBlackboard(uint64[12] memory bitboards) internal pure returns (uint64){
-        uint64 board;
-        board |= bitboards[uint(Piece.p)];
-        board |= bitboards[uint(Piece.n)];
-        board |= bitboards[uint(Piece.b)];
-        board |= bitboards[uint(Piece.r)];
-        board |= bitboards[uint(Piece.q)];
-        board |= bitboards[uint(Piece.k)];
-        return board;
-    }
+    // function getBlackboard(uint64[12] memory bitboards) internal pure returns (uint64){
+    //     uint64 board;
+    //     board |= bitboards[uint(Piece.p)];
+    //     board |= bitboards[uint(Piece.n)];
+    //     board |= bitboards[uint(Piece.b)];
+    //     board |= bitboards[uint(Piece.r)];
+    //     board |= bitboards[uint(Piece.q)];
+    //     board |= bitboards[uint(Piece.k)];
+    //     return board;
+    // }
 
     function isMoveValid(GameState memory gameState, uint64[12] memory bitboards, Move memory move) public view returns (bool) {    
         // source piece should match playing side
@@ -384,7 +327,7 @@ contract Chess is DSTest {
             return false;
         }
 
-        uint64 blockerboard = getBlockerBoard(bitboards);
+        uint64 blockerboard = getBlockerboard(bitboards);
 
         // not files, for move validations
         uint64 notAFile = 18374403900871474942;
@@ -588,9 +531,9 @@ contract Chess is DSTest {
             return true;
         }
 
-        uint enPassanSq;
+
         if (move.moveFlag == MoveFlag.Enpassant){
-            if (enPassanSq == 0 || move.targetSq != enPassanSq || (move.sourcePiece != Piece.P && move.sourcePiece != Piece.p)){
+            if (gameState.enpassantSq == 0 || move.targetSq != gameState.enpassantSq || (move.sourcePiece != Piece.P && move.sourcePiece != Piece.p)){
                 return false;
             }
 
