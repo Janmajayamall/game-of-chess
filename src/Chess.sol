@@ -37,36 +37,31 @@ contract Chess is DSTest {
         PawnPromotion
     }
 
-    struct EncodedBoardState {
+    struct EncodedBitboards {
         uint256 firstPieceB; // p, n, b, r 
         uint256 secondPieceB; // q, k, Q, K
         uint256 thirdPieceB; // P, N, B, R
-        uint8 castlings; // wq, wk, bq, bk,
-        uint64 enpassantSq;
     }
 
-    struct BoardState {
-        uint64[12] bitboard;
+    struct GameState {
+        // playing side
+        uint8 side; // 0 -> white, 1 -> black
+
+        // winner
+        uint8 winner; // 0 -> white, 1 -> black, 2 -> draw
+
+        // enpassant
+        uint64 enpassantSq;
 
         // castling rights
         bool bkC;
         bool bqC;
         bool wkC;
         bool wqC;
-
-        // enpassant
-        uint64 enpassantSq;
     }
 
+ 
 
-    /**
-        6 white bitboards
-        6 black bitboards
-
-        castling rights wq wk bq bk 
-
-        enpassant
-     */
 
     // attacking squares of non-sliding pieces
     mapping(uint => uint64) whitePawnAttacks;
@@ -74,66 +69,50 @@ contract Chess is DSTest {
     mapping(uint => uint64) kingAttacks;
     mapping(uint => uint64) knightAttacks;
 
-    function decodeBoardState(EncodedBoardState memory eboardState) internal pure returns(BoardState memory boardState) {
+    function decodeBitboards(EncodedBitboards memory eBitboards) internal pure returns (uint64[12] memory bitboards){
         // handling first piece
-        boardState.bitboard[uint(Piece.r)] = uint64(eboardState.firstPieceB);
-        boardState.bitboard[uint(Piece.b)] = uint64(eboardState.firstPieceB >> 64);
-        boardState.bitboard[uint(Piece.n)] = uint64(eboardState.firstPieceB >> 128);
-        boardState.bitboard[uint(Piece.p)] = uint64(eboardState.firstPieceB >> 192);
+        bitboards[uint(Piece.r)] = uint64(eBitboards.firstPieceB);
+        bitboards[uint(Piece.b)] = uint64(eBitboards.firstPieceB >> 64);
+        bitboards[uint(Piece.n)] = uint64(eBitboards.firstPieceB >> 128);
+        bitboards[uint(Piece.p)] = uint64(eBitboards.firstPieceB >> 192);
 
         // handling second piece
-        boardState.bitboard[uint(Piece.K)] = uint64(eboardState.secondPieceB);
-        boardState.bitboard[uint(Piece.Q)] = uint64(eboardState.secondPieceB >> 64);
-        boardState.bitboard[uint(Piece.k)] = uint64(eboardState.secondPieceB >> 128);
-        boardState.bitboard[uint(Piece.q)] = uint64(eboardState.secondPieceB >> 192);
+        bitboards[uint(Piece.K)] = uint64(eBitboards.secondPieceB);
+        bitboards[uint(Piece.Q)] = uint64(eBitboards.secondPieceB >> 64);
+        bitboards[uint(Piece.k)] = uint64(eBitboards.secondPieceB >> 128);
+        bitboards[uint(Piece.q)] = uint64(eBitboards.secondPieceB >> 192);
 
         // handling third piece
-        boardState.bitboard[uint(Piece.R)] = uint64(eboardState.thirdPieceB);
-        boardState.bitboard[uint(Piece.B)] = uint64(eboardState.thirdPieceB >> 64);
-        boardState.bitboard[uint(Piece.N)] = uint64(eboardState.thirdPieceB >> 128);
-        boardState.bitboard[uint(Piece.P)] = uint64(eboardState.thirdPieceB >> 192);
-
-        // castling rights
-        boardState.bkC = eboardState.castlings & 1 != 0;
-        boardState.bqC = eboardState.castlings >> 1 & 1 != 0;
-        boardState.wkC = eboardState.castlings >> 2 & 1 != 0;
-        boardState.wqC = eboardState.castlings >> 3 & 1 != 0;
-
-        boardState.enpassantSq = eboardState.enpassantSq;
+        bitboards[uint(Piece.R)] = uint64(eBitboards.thirdPieceB);
+        bitboards[uint(Piece.B)] = uint64(eBitboards.thirdPieceB >> 64);
+        bitboards[uint(Piece.N)] = uint64(eBitboards.thirdPieceB >> 128);
+        bitboards[uint(Piece.P)] = uint64(eBitboards.thirdPieceB >> 192);
     }
 
-    function encodeBoardState(BoardState memory boardState) internal pure returns(EncodedBoardState memory eboardState){
+    function encodeBitboards(uint64[12] memory bitboards) internal pure returns (EncodedBitboards memory eBitboards){
         // handling first piece
-        eboardState.firstPieceB |= uint256(boardState.bitboard[uint(Piece.p)]) << 192;
-        eboardState.firstPieceB |= uint256(boardState.bitboard[uint(Piece.n)]) << 128;
-        eboardState.firstPieceB |= uint256(boardState.bitboard[uint(Piece.b)]) << 64;
-        eboardState.firstPieceB |= uint256(boardState.bitboard[uint(Piece.r)]);
+        eBitboards.firstPieceB |= uint256(bitboards[uint(Piece.p)]) << 192;
+        eBitboards.firstPieceB |= uint256(bitboards[uint(Piece.n)]) << 128;
+        eBitboards.firstPieceB |= uint256(bitboards[uint(Piece.b)]) << 64;
+        eBitboards.firstPieceB |= uint256(bitboards[uint(Piece.r)]);
 
         // handling second piece
-        eboardState.secondPieceB |= uint256(boardState.bitboard[uint(Piece.q)]) << 192;
-        eboardState.secondPieceB |= uint256(boardState.bitboard[uint(Piece.k)]) << 128;
-        eboardState.secondPieceB |= uint256(boardState.bitboard[uint(Piece.Q)]) << 64;
-        eboardState.secondPieceB |= uint256(boardState.bitboard[uint(Piece.K)]);
+        eBitboards.secondPieceB |= uint256(bitboards[uint(Piece.q)]) << 192;
+        eBitboards.secondPieceB |= uint256(bitboards[uint(Piece.k)]) << 128;
+        eBitboards.secondPieceB |= uint256(bitboards[uint(Piece.Q)]) << 64;
+        eBitboards.secondPieceB |= uint256(bitboards[uint(Piece.K)]);
 
         // handling third piece
-        eboardState.thirdPieceB |= uint256(boardState.bitboard[uint(Piece.P)]) << 192;
-        eboardState.thirdPieceB |= uint256(boardState.bitboard[uint(Piece.N)]) << 128;
-        eboardState.thirdPieceB |= uint256(boardState.bitboard[uint(Piece.B)]) << 64;
-        eboardState.thirdPieceB |= uint256(boardState.bitboard[uint(Piece.R)]);
-
-        // castling rights
-        eboardState.castlings |= boardState.wqC ? 1 << 3 : 0;
-        eboardState.castlings |= boardState.wkC ? 1 << 2 : 0;
-        eboardState.castlings |= boardState.bqC ? 1 << 1 : 0;
-        eboardState.castlings |= boardState.bkC ? 1 : 0;
-
-        eboardState.enpassantSq = boardState.enpassantSq;
+        eBitboards.thirdPieceB |= uint256(bitboards[uint(Piece.P)]) << 192;
+        eBitboards.thirdPieceB |= uint256(bitboards[uint(Piece.N)]) << 128;
+        eBitboards.thirdPieceB |= uint256(bitboards[uint(Piece.B)]) << 64;
+        eBitboards.thirdPieceB |= uint256(bitboards[uint(Piece.R)]);
     }
 
-    function updateAttackWithSquare(uint64 attackSquare, uint64 attacksBitboard) internal returns (uint64){
-        uint64 sqPos = uint64(1) << attackSquare;
-        return attacksBitboard |= sqPos;
-    }
+    // function updateAttackWithSquare(uint64 attackSquare, uint64 attacksBitboard) internal returns (uint64){
+    //     uint64 sqPos = uint64(1) << attackSquare;
+    //     return attacksBitboard |= sqPos;
+    // }
 
     function getBishopAttacks(uint64 square, uint blockboard) internal pure returns (uint64 attacks){
         uint64 sr = square / 8;
@@ -348,83 +327,70 @@ contract Chess is DSTest {
         require(move.sourcePiece != Piece.uk, "Unknown Piece");
     }
 
-    function getBlockerBoard(uint64[12] memory bitboards) internal pure returns (uint64 blockerBoard){
-        blockerBoard |= bitboards[uint(Piece.p)];
-        blockerBoard |= bitboards[uint(Piece.n)];
-        blockerBoard |= bitboards[uint(Piece.b)];
-        blockerBoard |= bitboards[uint(Piece.r)];
-        blockerBoard |= bitboards[uint(Piece.q)];
-        blockerBoard |= bitboards[uint(Piece.k)];
+    function getBlockerBoard(uint64[12] memory bitboards) internal pure returns (uint64 blockerboard){
+        blockerboard |= bitboards[uint(Piece.p)];
+        blockerboard |= bitboards[uint(Piece.n)];
+        blockerboard |= bitboards[uint(Piece.b)];
+        blockerboard |= bitboards[uint(Piece.r)];
+        blockerboard |= bitboards[uint(Piece.q)];
+        blockerboard |= bitboards[uint(Piece.k)];
 
-        blockerBoard |= bitboards[uint(Piece.P)];
-        blockerBoard |= bitboards[uint(Piece.N)];
-        blockerBoard |= bitboards[uint(Piece.B)];
-        blockerBoard |= bitboards[uint(Piece.R)];
-        blockerBoard |= bitboards[uint(Piece.Q)];
-        blockerBoard |= bitboards[uint(Piece.K)];
+        blockerboard |= bitboards[uint(Piece.P)];
+        blockerboard |= bitboards[uint(Piece.N)];
+        blockerboard |= bitboards[uint(Piece.B)];
+        blockerboard |= bitboards[uint(Piece.R)];
+        blockerboard |= bitboards[uint(Piece.Q)];
+        blockerboard |= bitboards[uint(Piece.K)];
     }
 
-    function test_isMoveValid() public view returns (bool) {
-        // accept a move, extract source and target -> store then in 3 uint256s 
-        uint64[12] memory bitboards =  [
-            // black pos
-            65280,
-            66,
-            36,
-            129,
-            8,
-            16,
-            // white pos
-            71776119061217280,
-            4755801206503243776,
-            2594073385365405696,
-            9295429630892703744,
-            576460752303423488,
-            1152921504606846976
-        ];
+    function getWhiteboard(uint64[12] memory bitboards) internal pure returns (uint64){
+        uint64 board;
+        board |= bitboards[uint(Piece.P)];
+        board |= bitboards[uint(Piece.N)];
+        board |= bitboards[uint(Piece.B)];
+        board |= bitboards[uint(Piece.R)];
+        board |= bitboards[uint(Piece.Q)];
+        board |= bitboards[uint(Piece.K)];
+        return board;
+    }
 
-    
+    function getBlackboard(uint64[12] memory bitboards) internal pure returns (uint64){
+        uint64 board;
+        board |= bitboards[uint(Piece.p)];
+        board |= bitboards[uint(Piece.n)];
+        board |= bitboards[uint(Piece.b)];
+        board |= bitboards[uint(Piece.r)];
+        board |= bitboards[uint(Piece.q)];
+        board |= bitboards[uint(Piece.k)];
+        return board;
+    }
+
+    function isMoveValid(GameState memory gameState, uint64[12] memory bitboards, Move memory move) public view returns (bool) {    
+        // source piece should match playing side
+        if (gameState.side == 0 && uint(move.sourcePiece) < 6){
+            // sourcePiece is black, when side is white
+            return false;
+        }
+        if (gameState.side == 1 && uint(move.sourcePiece) >= 6){
+            // sourcePiece is white, when side is black
+            return false;
+        }
+
+        // target piece cannot be of playiing side
+        if (gameState.side == 0 && move.targetPiece != Piece.uk && uint(move.targetPiece) >= 6){
+            return false;
+        }
+        if (gameState.side == 1 && uint(move.targetPiece) < 6){
+            return false;
+        }
+
+        uint64 blockerboard = getBlockerBoard(bitboards);
+
         // not files, for move validations
         uint64 notAFile = 18374403900871474942;
         uint64 notHFile = 9187201950435737471;
         uint64 notHGFile = 4557430888798830399;
         uint64 notABFile = 18229723555195321596;
-
-        // for a normal piece move
-
-        // uint side = 0; // white = 0; black = 1
-        
-
-        // // check that target isn't occupied by some piece on the same side
-        // if (side == 0 && (1 << targetSq & whiteBoard) > 0){
-        //     return false;
-        // }
-        // if (side == 1 && (1 << targetSq & blackBoard) > 0){
-        //     return false;
-        // }
-
-        /**
-        Check that target piece & source piece do not belong to the same side
-         */
-        // // piece present does not belongs to the playing side
-        // if ((side == 0 && uint(sourcePiece) < 6 )||( side == 1 && uint(sourcePiece) >= 6 )){
-        //     return false;
-        // }
-
-        // (
-        //     uint64 sourceSq, 
-        //     uint64 targetSq, 
-        //     uint64 moveBySq, 
-        //     bool moveLeftShift,
-        //     Piece sourcePiece,
-        //     Piece targetPiece,
-        //     uint64 sourcePieceBitBoard,
-        // ) = decodeMove(23, bitboards);
-
-        Move memory move = decodeMove(23, bitboards);
-
-        // blockerBitboard 
-        uint64 blockerBoard = getBlockerBoard(bitboards);
 
         if (move.moveFlag == MoveFlag.Castle){
             if (move.sourcePiece != Piece.K && move.sourcePiece != Piece.k){
@@ -445,26 +411,28 @@ contract Chess is DSTest {
 
                 // king side castling
                 if (move.targetSq == 62){
+                    if (gameState.wkC == false){
+                        return false;
+                    }
+
                     // rook should be on original pos
                     if (1 << 63 & bitboards[uint(Piece.R)] == 0){
                         return false;
                     }
 
-                    // TODO king & rook should not have moved
-
                     // no attacks to king and thru passage
                     if (
-                        isSquareAttacked(60, move.sourcePiece, bitboards, blockerBoard) ||
-                        isSquareAttacked(61, move.sourcePiece, bitboards, blockerBoard) ||
-                        isSquareAttacked(62, move.sourcePiece, bitboards, blockerBoard)
+                        isSquareAttacked(60, move.sourcePiece, bitboards, blockerboard) ||
+                        isSquareAttacked(61, move.sourcePiece, bitboards, blockerboard) ||
+                        isSquareAttacked(62, move.sourcePiece, bitboards, blockerboard)
                     ){
                         return false;
                     }
 
                     // passage should be empty
                     if (
-                        1 << 61 & blockerBoard != 0 ||
-                        1 << 62 & blockerBoard != 0
+                        1 << 61 & blockerboard != 0 ||
+                        1 << 62 & blockerboard != 0
                     ){
                         return false;
                     }
@@ -472,27 +440,29 @@ contract Chess is DSTest {
 
                 // queen side castling
                 if (move.targetSq == 58){
+                    if (gameState.wqC == false){
+                        return false;
+                    }
+                    
                     // rook should on original pos
                     if (1 << 56 & bitboards[uint(Piece.R)] == 0){
                         return false;
                     }
 
-                    // TODO king & rook should not have moved
-
-                     // no attacks to king and thru passage
+                    // no attacks to king and thru passage
                     if (
-                        isSquareAttacked(60, move.sourcePiece, bitboards, blockerBoard) ||
-                        isSquareAttacked(59, move.sourcePiece, bitboards, blockerBoard) ||
-                        isSquareAttacked(58, move.sourcePiece, bitboards, blockerBoard)
+                        isSquareAttacked(60, move.sourcePiece, bitboards, blockerboard) ||
+                        isSquareAttacked(59, move.sourcePiece, bitboards, blockerboard) ||
+                        isSquareAttacked(58, move.sourcePiece, bitboards, blockerboard)
                     ){
                         return false;
                     }
 
                     // passage should be empty
                     if (
-                        1 << 57 & blockerBoard != 0 ||
-                        1 << 58 & blockerBoard != 0 ||
-                        1 << 59 & blockerBoard != 0
+                        1 << 57 & blockerboard != 0 ||
+                        1 << 58 & blockerboard != 0 ||
+                        1 << 59 & blockerboard != 0
                     ){
                         return false;
                     }
@@ -514,26 +484,28 @@ contract Chess is DSTest {
 
                 // king side castling
                 if (move.targetSq == 6){
+                    if (gameState.bkC == false){
+                        return false;
+                    }
+
                     // rook should be on 7
                     if (1 << 7 & bitboards[uint(Piece.r)] == 0){
                         return false;
                     }
 
-                    // TODO king & rook should not have moved
-
                     // no attacks on king sq & thru sqaures
                     if (
-                        isSquareAttacked(4, move.sourcePiece, bitboards, blockerBoard) ||
-                        isSquareAttacked(5, move.sourcePiece, bitboards, blockerBoard) ||
-                        isSquareAttacked(6, move.sourcePiece, bitboards, blockerBoard) 
+                        isSquareAttacked(4, move.sourcePiece, bitboards, blockerboard) ||
+                        isSquareAttacked(5, move.sourcePiece, bitboards, blockerboard) ||
+                        isSquareAttacked(6, move.sourcePiece, bitboards, blockerboard) 
                     ){
                         return false;
                     }
 
                     // passage should be empty
                     if (
-                        1 << 5 & blockerBoard != 0 ||
-                        1 << 6 & blockerBoard != 0
+                        1 << 5 & blockerboard != 0 ||
+                        1 << 6 & blockerboard != 0
                     ){
                         return false;
                     }
@@ -542,27 +514,29 @@ contract Chess is DSTest {
 
                 // queen side castling
                 if (move.targetSq == 2){
+                    if (gameState.bqC == false){
+                        return false;
+                    }
+
                     // rook should be on 0 
                     if (1 & bitboards[uint(Piece.r)] == 0){
                         return false;
                     }
 
-                    // TODO king & rook should not have moved
-
                     // no attacks on king sq & thru squares
                     if (
-                        isSquareAttacked(4, move.sourcePiece, bitboards, blockerBoard) ||
-                        isSquareAttacked(3, move.sourcePiece, bitboards, blockerBoard) ||
-                        isSquareAttacked(2, move.sourcePiece, bitboards, blockerBoard) 
+                        isSquareAttacked(4, move.sourcePiece, bitboards, blockerboard) ||
+                        isSquareAttacked(3, move.sourcePiece, bitboards, blockerboard) ||
+                        isSquareAttacked(2, move.sourcePiece, bitboards, blockerboard) 
                     ){
                         return false;
                     }
 
                     // passage should be empty
                     if (
-                        1 << 3 & blockerBoard != 0 ||
-                        1 << 2 & blockerBoard != 0 ||
-                        1 << 1 & blockerBoard != 0
+                        1 << 3 & blockerboard != 0 ||
+                        1 << 2 & blockerboard != 0 ||
+                        1 << 1 & blockerboard != 0
                     ){
                         return false;
                     }
@@ -756,7 +730,7 @@ contract Chess is DSTest {
             }
 
             // cannot move forward if something is in front
-            if (move.moveBySq == 8 && (uint64(1) << move.sourceSq - 8 & blockerBoard) > 0){
+            if (move.moveBySq == 8 && (uint64(1) << move.sourceSq - 8 & blockerboard) > 0){
                 return false;
             }
 
@@ -777,8 +751,8 @@ contract Chess is DSTest {
 
             // check for promotion
             if (move.moveFlag == MoveFlag.PawnPromotion){
-                // promoted piece should be given
-                if (move.promotedToPiece == Piece.uk){
+                // promoted piece cannot be unkown, cannot be a pawn, cannot be a black piece
+                if (move.promotedToPiece == Piece.uk || uint(move.promotedToPiece) < 6 || move.promotedToPiece == Piece.P){
                     return false;
                 }
 
@@ -806,7 +780,7 @@ contract Chess is DSTest {
             }
 
             // cannot move forward if something is in front
-            if (move.moveBySq == 8 && (uint64(1) << move.sourceSq + 8 & blockerBoard) > 0){
+            if (move.moveBySq == 8 && (uint64(1) << move.sourceSq + 8 & blockerboard) > 0){
                 return false;
             }
 
@@ -828,8 +802,8 @@ contract Chess is DSTest {
 
             // check for promotion
             if (move.moveFlag == MoveFlag.PawnPromotion){
-                // promoted piece should be given
-                if (move.promotedToPiece == Piece.uk){
+                // promoted piece cannot be unkown, cannot be a pawn, cannot be a white piece
+                if (move.promotedToPiece == Piece.uk || uint(move.promotedToPiece) >= 6 || move.promotedToPiece == Piece.p){
                     return false;
                 }
 
@@ -872,7 +846,7 @@ contract Chess is DSTest {
                     }
 
                     // check whether blocker exists
-                    if ((uint(1) << sq & blockerBoard) > 0){
+                    if ((uint(1) << sq & blockerboard) > 0){
                         break;
                     }
 
@@ -892,7 +866,7 @@ contract Chess is DSTest {
                     }
 
                     // check whether blocker exists
-                    if ((uint(1) << sq & blockerBoard) > 0){
+                    if ((uint(1) << sq & blockerboard) > 0){
                         break;
                     }
 
@@ -915,7 +889,7 @@ contract Chess is DSTest {
                     }
 
                     // check whether blocker exists
-                    if ((uint(1) << sq & blockerBoard) > 0){
+                    if ((uint(1) << sq & blockerboard) > 0){
                         break;
                     }
 
@@ -938,7 +912,7 @@ contract Chess is DSTest {
                     }
 
                     // check whether blocker exists
-                    if ((uint(1) << sq & blockerBoard) > 0){
+                    if ((uint(1) << sq & blockerboard) > 0){
                         break;
                     }
 
@@ -975,7 +949,7 @@ contract Chess is DSTest {
                     }
 
                     // check whether blocker exists
-                    if ((uint(1) << sq & blockerBoard) > 0){
+                    if ((uint(1) << sq & blockerboard) > 0){
                         break;
                     }
 
@@ -993,7 +967,7 @@ contract Chess is DSTest {
                     }
 
                     // check whether blocker exists
-                    if ((uint(1) << sq & blockerBoard) > 0){
+                    if ((uint(1) << sq & blockerboard) > 0){
                         break;
                     }
 
@@ -1014,7 +988,7 @@ contract Chess is DSTest {
                     }
 
                     // check whether blocker exists
-                    if ((uint(1) << sq & blockerBoard) > 0){
+                    if ((uint(1) << sq & blockerboard) > 0){
                         break;
                     }
 
@@ -1035,7 +1009,7 @@ contract Chess is DSTest {
                     }
 
                     // check whether blocker exists
-                    if ((uint(1) << sq & blockerBoard) > 0){
+                    if ((uint(1) << sq & blockerboard) > 0){
                         break;
                     }
                     r += 1;
@@ -1048,45 +1022,87 @@ contract Chess is DSTest {
         }
     }
 
-    function applyMove() external {
-         uint64[12] memory bitboards =  [
-            // black pos
-            65280,
-            66,
-            36,
-            129,
-            8,
-            16,
-            // white pos
-            71776119061217280,
-            4755801206503243776,
-            2594073385365405696,
-            9295429630892703744,
-            576460752303423488,
-            1152921504606846976
-        ];
-        // (
-        //     uint64 sourceSq, 
-        //     uint64 targetSq, 
-        //     uint64 moveBySq, 
-        //     bool moveLeftShift,
-        //     Piece sourcePiece,
-        //     Piece targetPiece,
-        //     uint64 sourcePieceBitBoard,
-        // ) = decodeMove(23, bitboards);
+    function applyMove(uint24 moveValue) external {
+        GameState memory gameState;
+        EncodedBitboards memory encodedBitboards;
+        uint64[12] memory bitboards = decodeBitboards(encodedBitboards);
 
-        // require(test_isMoveValid(), "Invalid move");
+        Move memory move = decodeMove(moveValue, bitboards);
 
-        // // update source pos
-        // bitboards[uint(sourcePiece)] = (bitboards[uint(sourcePiece)] | uint64(1) << targetSq) & ~uint64(1) << sourceSq;
+        // check whether move is valid
+        require(isMoveValid(gameState, bitboards, move));
 
-        // // remove target piece, if it exists
-        // if (targetPiece != Piece.uk){
-        //     bitboards[uint(targetPiece)] = bitboards[uint(targetPiece)] & ~(uint64(1) << targetSq);
-        // }
+        // check game over
+        if (move.targetPiece == Piece.K){
+            // black won
+            gameState.winner = 1;
+            // TODO update game state
+            
+        }else if (move.targetPiece == Piece.k){
+            // white won
+            gameState.winner = 0;
+
+            // TODO update game state
+        }
+        // game not over
+        else {
+            // update source piece pos to target sq
+            bitboards[uint(move.sourcePiece)] = (bitboards[uint(move.sourcePiece)] | uint64(1) << move.targetSq) & ~uint64(1) << move.sourceSq;
+
+            // remove target piece from target sq
+            if (move.targetPiece != Piece.uk ){
+                bitboards[uint(move.targetPiece)] &= ~uint64(1) << move.targetSq;
+            }
+
+            // update pawn promotion
+            if (move.moveFlag == MoveFlag.PawnPromotion){
+                // add promoted piece at target sq
+                bitboards[uint(move.promotedToPiece)] |= uint64(1) << move.targetSq;
+                // remove pawn from target sq
+                bitboards[uint(move.sourcePiece)] &= ~uint64(1) << move.targetSq;
+            }
+            
+            // update enpassant
+            if (move.moveFlag == MoveFlag.DoublePush){
+                gameState.enpassantSq = move.moveLeftShift == true ? move.sourceSq + 8 : move.sourceSq - 8;
+            }else {
+                gameState.enpassantSq = 0; // Note 0 is an illegal enpassant square
+            }
+
+            // update castling rights
+            if (move.sourcePiece == Piece.K){
+                gameState.wkC = false;
+                gameState.wqC = false;
+            }
+            if (move.sourcePiece == Piece.R){
+                if (move.sourceSq == 56){
+                    gameState.wqC = false;
+                }else if (move.sourceSq == 63){
+                    gameState.wkC = false;
+                }
+            }
+            if (move.sourcePiece == Piece.k){
+                gameState.bkC = false;
+                gameState.bqC = false;
+            }
+            if (move.sourcePiece == Piece.r){
+                if (move.sourceSq == 0){
+                    gameState.bqC = false;
+                }else if (move.sourceSq == 7){
+                    gameState.bkC = false;
+                }
+            }
+
+            // switch playing side
+            if (gameState.side == 0){
+                gameState.side = 1;
+            }else{
+                gameState.side = 0;
+            }
+
+            // TODO update game state and bitboards
+        }
     }
-
-
 }
 /**
     Move bits
