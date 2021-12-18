@@ -11,12 +11,6 @@ contract Chess is IChess {
     // gameId => game's state
     mapping(uint => GameState) gamesState;
 
-    // attacking squares of non-sliding pieces
-    mapping(uint => uint64) whitePawnAttacks;
-    mapping(uint => uint64) blackPawnAttacks;
-    mapping(uint => uint64) kingAttacks;
-    mapping(uint => uint64) knightAttacks;
-
     function getBishopAttacks(uint64 square, uint blockboard) internal pure returns (uint64 attacks){
         uint64 sr = square / 8;
         uint64 sf = square % 8;
@@ -144,7 +138,49 @@ contract Chess is IChess {
         }
     }
 
-    function isSquareAttacked(uint64 square, Piece piece, uint64[12] memory bitboards, uint blockboard) internal view returns (bool){
+    function getKingAttacks(uint64 square) internal pure returns (uint64 attacks){
+        // not files, for move validations
+        uint64 notAFile = 18374403900871474942;
+        uint64 notHFile = 9187201950435737471;
+
+        uint64 sqBitboard = uint64(1) << square;
+
+        // upwards
+        if (sqBitboard >> 8 != 0) attacks |= sqBitboard >> 8;
+        if (sqBitboard >> 9 & notHFile != 0) attacks |= sqBitboard >> 9;
+        if (sqBitboard >> 7 & notAFile != 0) attacks |= sqBitboard >> 7;
+        if (sqBitboard >> 1 & notHFile != 0) attacks |= sqBitboard >> 1;
+
+        // downwards
+        if (sqBitboard << 8 != 0) attacks |= sqBitboard << 8;
+        if (sqBitboard << 9 & notAFile != 0) attacks |= sqBitboard << 9;
+        if (sqBitboard << 7 & notHFile != 0) attacks |= sqBitboard << 7;
+        if (sqBitboard << 1 & notAFile != 0) attacks |= sqBitboard << 1;
+    }
+
+    function getKnightAttacks(uint64 square) internal pure returns (uint64 attacks){
+        // not files, for move validations
+        uint64 notAFile = 18374403900871474942;
+        uint64 notHFile = 9187201950435737471;
+        uint64 notHGFile = 4557430888798830399;
+        uint64 notABFile = 18229723555195321596;
+
+        uint64 sqBitboard = uint64(1) << square;
+
+        // upwards
+        if (sqBitboard >> 15 & notAFile != 0) attacks |= sqBitboard >> 15;
+        if (sqBitboard >> 17 & notHFile != 0) attacks |= sqBitboard >> 17;
+        if (sqBitboard >> 6 & notABFile != 0) attacks |= sqBitboard >> 6;
+        if (sqBitboard >> 10 & notHGFile != 0) attacks |= sqBitboard >> 10;
+
+        // downwards
+        if (sqBitboard << 15 & notHFile != 0) attacks |= sqBitboard << 15;
+        if (sqBitboard << 17 & notAFile != 0) attacks |= sqBitboard << 17;
+        if (sqBitboard << 6 & notHGFile != 0) attacks |= sqBitboard << 6;
+        if (sqBitboard << 10 & notABFile != 0) attacks |= sqBitboard << 10;
+    }
+
+    function isSquareAttacked(uint64 square, Piece piece, uint64[12] memory bitboards, uint blockboard) internal pure returns (bool){
         if (piece == Piece.uk){
             return false;
         }
@@ -155,22 +191,22 @@ contract Chess is IChess {
         }
 
         // check black pawn attacks on sq
-        if (side == 0 && whitePawnAttacks[square] & bitboards[uint(Piece.p)] != 0) {
+        if (side == 0 && getPawnAttacks(square, side) & bitboards[uint(Piece.p)] != 0) {
             return true;
         }
 
         // check white pawn attacks on sq
-        if (side == 1 && blackPawnAttacks[square] & bitboards[uint(Piece.P)] != 0) {
+        if (side == 1 && getPawnAttacks(square, side) & bitboards[uint(Piece.P)] != 0) {
             return true;
         }
 
         // check kings attacks on sq
-        if (kingAttacks[square] & (side == 0 ? bitboards[uint(Piece.k)] : bitboards[uint(Piece.K)]) != 0) {
+        if (getKingAttacks(square) & (side == 0 ? bitboards[uint(Piece.k)] : bitboards[uint(Piece.K)]) != 0) {
             return true;
         }
 
         // check knight attacks on sq
-        if (knightAttacks[square] & (side == 0 ? bitboards[uint(Piece.n)] : bitboards[uint(Piece.N)]) != 0){
+        if (getKnightAttacks(square) & (side == 0 ? bitboards[uint(Piece.n)] : bitboards[uint(Piece.N)]) != 0){
             return true;
         }
 
@@ -265,7 +301,7 @@ contract Chess is IChess {
         blockerboard |= bitboards[uint(Piece.K)];
     }
 
-    function isMoveValid(GameState memory gameState, Move memory move) public view returns (bool) {    
+    function isMoveValid(GameState memory gameState, Move memory move) public pure returns (bool) {    
         if (gameState.state != 1){
             return false;
         }
@@ -446,8 +482,6 @@ contract Chess is IChess {
                     }
                 }
             }
-
-            return true;
         }
 
         if (move.moveFlag == MoveFlag.DoublePush){
@@ -572,22 +606,22 @@ contract Chess is IChess {
             // downwards
             if (move.moveLeftShift == true){
                 // check falling off right edge
-                if (move.moveBySq == 17 && (move.sourcePieceBitBoard <<  17 & notAFile) == 0){
+                if (move.moveBySq == 17 && (move.sourcePieceBitBoard << 17 & notAFile) == 0){
                     return false;
                 }
 
                 // check falling off right edge (2 lvl deep)
-                if (move.moveBySq == 10 && (move.sourcePieceBitBoard <<  10 & notABFile) == 0){
+                if (move.moveBySq == 10 && (move.sourcePieceBitBoard << 10 & notABFile) == 0){
                     return false;
                 }
 
                 // check falling off left edge
-                if (move.moveBySq == 15 && (move.sourcePieceBitBoard <<  15 & notHFile) == 0){
+                if (move.moveBySq == 15 && (move.sourcePieceBitBoard << 15 & notHFile) == 0){
                     return false;
                 }
 
                 // check falling off left edge (2 lvl deep)
-                if (move.moveBySq == 6 && (move.sourcePieceBitBoard <<  6 & notHGFile) == 0){
+                if (move.moveBySq == 6 && (move.sourcePieceBitBoard << 6 & notHGFile) == 0){
                     return false;
                 }
             }
@@ -717,19 +751,21 @@ contract Chess is IChess {
                 }
             }
         } 
-
-        // queen
-        if ((move.sourcePiece == Piece.Q || move.sourcePiece == Piece.q) && move.moveFlag == MoveFlag.NoFlag){
-            // if rank or file matches, then move is like a rook, otherwise bishop
-            if ((move.sourceSq % 8 == move.targetSq % 8) || (move.sourceSq / 8 == move.targetSq / 8)){
-                move.sourcePiece == Piece.R;
-            }else {
-                move.sourcePiece == Piece.B;
-            }
-        }
     
-        // bishop
-        if ((move.sourcePiece == Piece.B || move.sourcePiece == Piece.b) && move.moveFlag == MoveFlag.NoFlag) {
+        // bishop & possibly queen
+        if (
+            (
+                (move.sourcePiece == Piece.B || move.sourcePiece == Piece.b) || 
+                (
+                    // queen moves like a bishop if both rank and file of source & target don't match
+                    (move.sourcePiece == Piece.Q || move.sourcePiece == Piece.q) 
+                    && (move.sourceSq % 8 != move.targetSq % 8)
+                    && (move.sourceSq / 8 != move.targetSq / 8)
+                )
+            )
+            && move.moveFlag == MoveFlag.NoFlag
+            ) 
+        {
             uint sr = move.sourceSq / 8; 
             uint sf = move.sourceSq % 8;
             uint tr = move.targetSq / 8; 
@@ -832,8 +868,20 @@ contract Chess is IChess {
             require(targetFound);
         }
 
-        // rook
-        if ((move.sourcePiece == Piece.R || move.sourcePiece == Piece.r) && move.moveFlag == MoveFlag.NoFlag) {
+        // rook & possibly queen
+        if (
+            (
+                (move.sourcePiece == Piece.R || move.sourcePiece == Piece.r) || 
+                (
+                    // queen moves like a rook if both either of rank and file of source & target match
+                    (move.sourcePiece == Piece.Q || move.sourcePiece == Piece.q) 
+                    && ((move.sourceSq % 8 == move.targetSq % 8)
+                        || (move.sourceSq / 8 == move.targetSq / 8))
+                )
+            )
+            && move.moveFlag == MoveFlag.NoFlag
+            ) 
+        {
             uint sr = move.sourceSq / 8; 
             uint sf = move.sourceSq % 8;
             uint tr = move.targetSq / 8; 
@@ -924,6 +972,8 @@ contract Chess is IChess {
             // if targetSq not found, then targetSq isn't valid
             if (targetFound == false) return false;
         }
+
+        return true;
     }
 
     function applyMove(uint gameId, uint24 moveValue) external {
@@ -1038,12 +1088,6 @@ contract Chess is IChess {
         gamesState[gameId] = _gameState;
     }
 
-    function activateContract() external {
-        require(!isActive, "Already activated");
-        
-        // setup attacking sqaures for non-sliding pieces
-
-    }
 }
 
 
