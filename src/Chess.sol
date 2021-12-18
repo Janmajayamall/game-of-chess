@@ -38,6 +38,11 @@ contract Chess is DSTest {
         PawnPromotion
     }
 
+    mapping(uint => uint64) whitePawnAttacks;
+    mapping(uint => uint64) blackPawnAttacks;
+    mapping(uint => uint64) kingAttacks;
+    mapping(uint => uint64) knightAttacks;
+
     // uint256[12] bitboards = [
     //     // black pos
     //     65280,
@@ -65,6 +70,41 @@ contract Chess is DSTest {
     // function test_3ecall() external {
     //     uint f = 256;
     // }
+
+    function isSquareAttacked(uint64 square, Piece piece, uint64[12] memory bitboards) internal view returns (bool){
+        if (piece == Piece.uk){
+            return false;
+        }
+
+        // white piece
+        if (uint(piece) < 6){
+            
+            // check pawn attacks
+            if (whitePawnAttacks[square] & bitboards[uint(Piece.p)] != 0) {
+                return true;
+            }
+
+            // check kings attacks
+            if (kingAttacks[square] & bitboards[uint(Piece.k)] != 0) {
+                return true;
+            }
+
+            // check knight attacks
+            if (knightAttacks[square] & bitboards[uint(Piece.n)] != 0){
+                return true;
+            }
+
+        // Finish the rest
+            // rook 
+            // bishop
+            // 
+
+        }// black piece
+        else {
+
+        }
+
+    }
 
 
     function decodeMove(uint24 moveValue, uint64[12] memory bitboards) internal returns (Move memory move) {
@@ -196,6 +236,155 @@ contract Chess is DSTest {
 
         Move memory move = decodeMove(23, bitboards);
 
+        // blockerBitboard 
+        uint64 blockerBoard = getBlockerBoard(bitboards);
+
+        if (move.moveFlag == MoveFlag.Castle){
+            if (move.sourcePiece != Piece.K && move.sourcePiece != Piece.k){
+                return false;
+            }
+
+            // white king
+            if (move.sourcePiece == Piece.K){
+                // king should be on original pos
+                if (move.sourceSq != 60){
+                    return false;
+                }
+
+                // targetSq can only be 62 or 58
+                if (move.targetSq != 62 && move.targetSq != 58){
+                    return false;
+                }
+
+                // king side castling
+                if (move.targetSq == 62){
+                    // rook should be on original pos
+                    if (1 << 63 & bitboards[uint(Piece.R)] == 0){
+                        return false;
+                    }
+
+                    // TODO king & rook should not have moved
+
+                    // no attacks to king and thru passage
+                    if (
+                        isSquareAttacked(60, move.sourcePiece, bitboards) ||
+                        isSquareAttacked(61, move.sourcePiece, bitboards) ||
+                        isSquareAttacked(62, move.sourcePiece, bitboards)
+                    ){
+                        return false;
+                    }
+
+                    // passage should be empty
+                    if (
+                        1 << 61 & blockerBoard != 0 ||
+                        1 << 62 & blockerBoard != 0
+                    ){
+                        return false;
+                    }
+                }
+
+                // queen side castling
+                if (move.targetSq == 58){
+                    // rook should on original pos
+                    if (1 << 56 & bitboards[uint(Piece.R)] == 0){
+                        return false;
+                    }
+
+                    // TODO king & rook should not have moved
+
+                     // no attacks to king and thru passage
+                    if (
+                        isSquareAttacked(60, move.sourcePiece, bitboards) ||
+                        isSquareAttacked(59, move.sourcePiece, bitboards) ||
+                        isSquareAttacked(58, move.sourcePiece, bitboards)
+                    ){
+                        return false;
+                    }
+
+                    // passage should be empty
+                    if (
+                        1 << 57 & blockerBoard != 0 ||
+                        1 << 58 & blockerBoard != 0 ||
+                        1 << 59 & blockerBoard != 0
+                    ){
+                        return false;
+                    }
+                }
+                
+            }
+
+            // black king
+            if (move.sourcePiece == Piece.k){
+                // king should on original pos
+                if (move.sourceSq != 4){
+                    return false;
+                }
+
+                // targetSq can only be 2 or 6
+                if (move.targetSq != 2 && move.targetSq != 7){
+                    return false;
+                }
+
+                // king side castling
+                if (move.targetSq == 6){
+                    // rook should be on 7
+                    if (1 << 7 & bitboards[uint(Piece.r)] == 0){
+                        return false;
+                    }
+
+                    // TODO king & rook should not have moved
+
+                    // no attacks on king sq & thru sqaures
+                    if (
+                        isSquareAttacked(4, move.sourcePiece, bitboards) ||
+                        isSquareAttacked(5, move.sourcePiece, bitboards) ||
+                        isSquareAttacked(6, move.sourcePiece, bitboards) 
+                    ){
+                        return false;
+                    }
+
+                    // passage should be empty
+                    if (
+                        1 << 5 & blockerBoard != 0 ||
+                        1 << 6 & blockerBoard != 0
+                    ){
+                        return false;
+                    }
+                }
+
+
+                // queen side castling
+                if (move.targetSq == 2){
+                    // rook should be on 0 
+                    if (1 & bitboards[uint(Piece.r)] == 0){
+                        return false;
+                    }
+
+                    // TODO king & rook should not have moved
+
+                    // no attacks on king sq & thru sqaures
+                    if (
+                        isSquareAttacked(4, move.sourcePiece, bitboards) ||
+                        isSquareAttacked(3, move.sourcePiece, bitboards) ||
+                        isSquareAttacked(2, move.sourcePiece, bitboards) 
+                    ){
+                        return false;
+                    }
+
+                    // passage should be empty
+                    if (
+                        1 << 3 & blockerBoard != 0 ||
+                        1 << 2 & blockerBoard != 0 ||
+                        1 << 1 & blockerBoard != 0
+                    ){
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
         if (move.moveFlag == MoveFlag.DoublePush){
             // should be pawn
             if (move.sourcePiece != Piece.P && move.sourcePiece != Piece.p){
@@ -238,7 +427,32 @@ contract Chess is DSTest {
             return true;
         }
 
+        uint enPassanSq;
+        if (move.moveFlag == MoveFlag.Enpassant){
+            if (enPassanSq == 0 || move.targetSq != enPassanSq || (move.sourcePiece != Piece.P && move.sourcePiece != Piece.p)){
+                return false;
+            }
 
+            if (move.moveBySq != 9 && move.moveBySq != 7){
+                return false;
+            }
+
+            // white pawn
+            if (move.sourcePiece == Piece.P){
+                // move upwards
+                if (move.moveLeftShift != false){
+                    return false;
+                }
+            }
+
+            // black pawn
+            if (move.sourcePiece == Piece.p){
+                // move downwards
+                if (move.moveLeftShift != true){
+                    return false;
+                }
+            }
+        }
 
         // king
         if (move.sourcePiece == Piece.K){
@@ -338,9 +552,7 @@ contract Chess is DSTest {
 
         }
 
-        // blockerBitboard 
-        uint64 blockerBoard = getBlockerBoard(bitboards);
-
+        
         // white pawns
         if (move.sourcePiece == Piece.P){
             if (move.moveBySq != 8 && move.moveBySq != 9 && move.moveBySq != 7){
@@ -375,6 +587,19 @@ contract Chess is DSTest {
             // check falling off left edge
             if (move.moveBySq == 9 && (move.sourcePieceBitBoard >> 9 & notHFile) == 0){
                 return false;
+            }
+
+            // check for promotion
+            if (move.moveFlag == MoveFlag.PawnPromotion){
+                // promoted piece should be given
+                if (move.promotedToPiece == Piece.uk){
+                    return false;
+                }
+
+                // current rank should be 1
+                if (move.sourceSq / 8 != 1){
+                    return false;
+                }
             }
         }   
 
@@ -413,6 +638,19 @@ contract Chess is DSTest {
             // check falling off right edge
             if (move.moveBySq == 7 && (move.sourcePieceBitBoard << 7 & notHFile) == 0){
                 return false;
+            }
+
+            // check for promotion
+            if (move.moveFlag == MoveFlag.PawnPromotion){
+                // promoted piece should be given
+                if (move.promotedToPiece == Piece.uk){
+                    return false;
+                }
+
+                // current rank should be 6
+                if (move.sourceSq / 8 != 6){
+                    return false;
+                }
             }
         } 
 
