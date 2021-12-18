@@ -71,43 +71,171 @@ contract Chess is DSTest {
     //     uint f = 256;
     // }
 
-    function isSquareAttacked(uint64 square, Piece piece, uint64[12] memory bitboards) internal view returns (bool){
+    function updateAttackWithSquare(uint64 attackSquare, uint64 attacksBitboard) internal returns (uint64){
+        uint64 sqPos = uint64(1) << attackSquare;
+        return attacksBitboard |= sqPos;
+    }
+
+    function getBishopAttacks(uint64 square, uint blockboard) internal view returns (uint64 attacks){
+        uint64 sr = square / 8;
+        uint64 sf = square % 8;
+
+        uint64 r = sr + 1;
+        uint64 f = sf + 1;
+
+        while (r <= 7 && f <= 7){
+            uint64 sq = r * 8 + f;
+            uint64 sqPos = uint64(1) << sq;
+            if (sqPos & blockboard != 0) break;
+            attacks |= sqPos;
+            r += 1;
+            f += 1;
+        }
+
+        if (f != 0){
+            r = sr + 1;
+            f = sf - 1;
+            while (r <= 7){
+                uint64 sq = r * 8 + f;
+                uint64 sqPos = uint64(1) << sq;
+                if (sqPos & blockboard != 0) break;
+                attacks |= sqPos;
+                r += 1;
+                if (f == 0) break;
+                f -= 1;
+            }
+        }
+
+        if (r != 0){
+            r = sr - 1;
+            f = sf + 1;
+            while (f <= 7){
+                uint64 sq = r * 8 + f;
+                uint64 sqPos = uint64(1) << sq;
+                if (sqPos & blockboard != 0) break;
+                attacks |= sqPos;
+                f += 1;
+                if (r == 0) break;
+                r -= 1;
+            }
+        }
+
+        if (r != 0 && f != 0){
+            r = sr - 1;
+            f = sf - 1;
+            while (true){
+                uint64 sq = r * 8 + f;
+                uint64 sqPos = uint64(1) << sq;
+                if (sqPos & blockboard != 0) break;
+                attacks |= sqPos;
+                if (r == 0 || f == 0) break;
+                r -= 1;
+                f -= 1;
+            }
+        }
+    }
+
+    function getRookAttacks(uint64 square, uint blockboard) internal view returns (uint64 attacks) {
+        uint64 sr = square / 8;
+        uint64 sf = square % 8;
+
+        uint64 r = sr + 1;
+        uint64 f;
+
+        while (r <= 7){
+            uint64 sq = r * 8 + sf;
+            uint64 sqPos = uint64(1) << sq;
+            if (sqPos & blockboard != 0) break;
+            attacks |= sqPos;
+            r += 1;
+        }
+
+        f = sf + 1;
+        while (f <= 7){
+            uint64 sq = sr * 8 + f;
+            uint64 sqPos = uint64(1) << sq;
+            if (sqPos & blockboard != 0) break;
+            attacks |= sqPos;
+            f += 1;
+        }
+
+        if (sr != 0){
+            r = sr - 1;
+            while (true){
+                uint64 sq = r * 8 + sf;
+                uint64 sqPos = uint64(1) << sq;
+                if (sqPos & blockboard != 0) break;
+                attacks |= sqPos;
+                if (r == 0) break;
+                r -= 1;
+            }
+        }
+
+        if (sf != 0){
+            f = sf - 1;
+            while (true){
+                uint64 sq = sr * 8 + f;
+                uint64 sqPos = uint64(1) << sq;
+                if (sqPos & blockboard != 0) break;
+                attacks |= sqPos;
+                if (f == 0) break;
+                f -= 1;
+            }
+        }
+    }
+
+    function isSquareAttacked(uint64 square, Piece piece, uint64[12] memory bitboards, uint blockboard) internal view returns (bool){
         if (piece == Piece.uk){
             return false;
         }
 
-        // white piece
+        uint side;
         if (uint(piece) < 6){
-            
-            // check pawn attacks
-            if (whitePawnAttacks[square] & bitboards[uint(Piece.p)] != 0) {
-                return true;
-            }
-
-            // check kings attacks
-            if (kingAttacks[square] & bitboards[uint(Piece.k)] != 0) {
-                return true;
-            }
-
-            // check knight attacks
-            if (knightAttacks[square] & bitboards[uint(Piece.n)] != 0){
-                return true;
-            }
-
-        // Finish the rest
-            // rook 
-            // bishop
-            // 
-
-        }// black piece
-        else {
-
+            side = 1;
         }
 
+        // check black pawn attacks on sq
+        if (side == 0 && whitePawnAttacks[square] & bitboards[uint(Piece.p)] != 0) {
+            return true;
+        }
+
+        // check white pawn attacks on sq
+        if (side == 1 && blackPawnAttacks[square] & bitboards[uint(Piece.P)] != 0) {
+            return true;
+        }
+
+        // check kings attacks on sq
+        if (kingAttacks[square] & (side == 0 ? bitboards[uint(Piece.k)] : bitboards[uint(Piece.K)]) != 0) {
+            return true;
+        }
+
+        // check knight attacks on sq
+        if (knightAttacks[square] & (side == 0 ? bitboards[uint(Piece.n)] : bitboards[uint(Piece.N)]) != 0){
+            return true;
+        }
+
+        // bishop attacks on sq
+        uint64 bishopAttacks = getBishopAttacks(square, blockboard);
+        if (bishopAttacks & (side == 0 ? bitboards[uint(Piece.b)] : bitboards[uint(Piece.B)]) != 0){
+            return true;
+        }
+
+        // rook attacks on sq
+        uint64 rookAttacks = getRookAttacks(square, blockboard);
+        if (rookAttacks & (side == 0 ? bitboards[uint(Piece.r)] : bitboards[uint(Piece.R)]) != 0){
+            return true;
+        }
+
+        // queen attacks on sq
+        uint64 queenAttacks = bishopAttacks | rookAttacks;
+        if (queenAttacks & (side == 0 ? bitboards[uint(Piece.q)] : bitboards[uint(Piece.Q)]) != 0){
+            return true;
+        }
+
+        return false;
     }
 
-
-    function decodeMove(uint24 moveValue, uint64[12] memory bitboards) internal returns (Move memory move) {
+    function decodeMove(uint24 moveValue, uint64[12] memory bitboards) internal pure returns (Move memory move) {
         move.sourceSq = moveValue & 63;
         move.targetSq = moveValue & 4032 >> 6;
 
@@ -455,7 +583,7 @@ contract Chess is DSTest {
         }
 
         // king
-        if (move.sourcePiece == Piece.K){
+        if (move.sourcePiece == Piece.K && move.moveFlag == MoveFlag.NoFlag){
             // moveBy can only be 8, 9, 7, 1
             if (move.moveBySq != 8 && move.moveBySq != 9 && move.moveBySq != 7 && move.moveBySq != 1){
                 return false;
@@ -499,7 +627,7 @@ contract Chess is DSTest {
         }
 
         // knight
-        if (move.sourcePiece == Piece.K || move.sourcePiece == Piece.k) {
+        if ((move.sourcePiece == Piece.K || move.sourcePiece == Piece.k) && move.moveFlag == MoveFlag.NoFlag) {
             if (move.moveBySq != 17 && move.moveBySq != 15 && move.moveBySq != 6 && move.moveBySq != 10) {
                 return false;
             }
@@ -554,7 +682,7 @@ contract Chess is DSTest {
 
         
         // white pawns
-        if (move.sourcePiece == Piece.P){
+        if (move.sourcePiece == Piece.P && (move.moveFlag == MoveFlag.NoFlag || move.moveFlag == MoveFlag.PawnPromotion)){
             if (move.moveBySq != 8 && move.moveBySq != 9 && move.moveBySq != 7){
                 return false;
             }
@@ -604,7 +732,7 @@ contract Chess is DSTest {
         }   
 
         // black pawns
-        if (move.sourcePiece == Piece.p){
+        if (move.sourcePiece == Piece.p && (move.moveFlag == MoveFlag.NoFlag || move.moveFlag == MoveFlag.PawnPromotion)){
             if (move.moveBySq != 8 && move.moveBySq != 9 && move.moveBySq != 7){
                 return false;
             }
@@ -655,7 +783,7 @@ contract Chess is DSTest {
         } 
 
         // queen
-        if (move.sourcePiece == Piece.Q || move.sourcePiece == Piece.q){
+        if ((move.sourcePiece == Piece.Q || move.sourcePiece == Piece.q) && move.moveFlag == MoveFlag.NoFlag){
             // if rank or file matches, then move is like a rook, otherwise bishop
             if ((move.sourceSq % 8 == move.targetSq % 8) || (move.sourceSq / 8 == move.targetSq / 8)){
                 move.sourcePiece == Piece.R;
@@ -665,7 +793,7 @@ contract Chess is DSTest {
         }
     
         // bishop
-        if (move.sourcePiece == Piece.B || move.sourcePiece == Piece.b) {
+        if ((move.sourcePiece == Piece.B || move.sourcePiece == Piece.b) && move.moveFlag == MoveFlag.NoFlag) {
             uint sr = move.sourceSq / 8; 
             uint sf = move.sourceSq % 8;
             uint tr = move.targetSq / 8; 
@@ -769,7 +897,7 @@ contract Chess is DSTest {
         }
 
         // rook
-        if (move.sourcePiece == Piece.R || move.sourcePiece == Piece.r) {
+        if ((move.sourcePiece == Piece.R || move.sourcePiece == Piece.r) && move.moveFlag == MoveFlag.NoFlag) {
             uint sr = move.sourceSq / 8; 
             uint sf = move.sourceSq % 8;
             uint tr = move.targetSq / 8; 
