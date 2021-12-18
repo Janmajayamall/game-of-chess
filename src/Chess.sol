@@ -6,6 +6,10 @@ import "./interfaces/IChess.sol";
 
 contract Chess is IChess, DSTest {
 
+    // game id => gamestate & game's encoded bitboards
+    mapping(uint => EncodedBitboards) gamesEncodedBitboards;
+    mapping(uint => GameState) gamesState;
+
     // attacking squares of non-sliding pieces
     mapping(uint => uint64) whitePawnAttacks;
     mapping(uint => uint64) blackPawnAttacks;
@@ -286,29 +290,11 @@ contract Chess is IChess, DSTest {
         blockerboard |= bitboards[uint(Piece.K)];
     }
 
-    // function getWhiteboard(uint64[12] memory bitboards) internal pure returns (uint64){
-    //     uint64 board;
-    //     board |= bitboards[uint(Piece.P)];
-    //     board |= bitboards[uint(Piece.N)];
-    //     board |= bitboards[uint(Piece.B)];
-    //     board |= bitboards[uint(Piece.R)];
-    //     board |= bitboards[uint(Piece.Q)];
-    //     board |= bitboards[uint(Piece.K)];
-    //     return board;
-    // }
-
-    // function getBlackboard(uint64[12] memory bitboards) internal pure returns (uint64){
-    //     uint64 board;
-    //     board |= bitboards[uint(Piece.p)];
-    //     board |= bitboards[uint(Piece.n)];
-    //     board |= bitboards[uint(Piece.b)];
-    //     board |= bitboards[uint(Piece.r)];
-    //     board |= bitboards[uint(Piece.q)];
-    //     board |= bitboards[uint(Piece.k)];
-    //     return board;
-    // }
-
     function isMoveValid(GameState memory gameState, uint64[12] memory bitboards, Move memory move) public view returns (bool) {    
+        if (gameState.state != 1){
+            return false;
+        }
+
         // source piece should match playing side
         if (gameState.side == 0 && uint(move.sourcePiece) < 6){
             // sourcePiece is black, when side is white
@@ -965,11 +951,11 @@ contract Chess is IChess, DSTest {
         }
     }
 
-    function applyMove(uint24 moveValue) external {
-        GameState memory gameState;
-        EncodedBitboards memory encodedBitboards;
-        uint64[12] memory bitboards = decodeBitboards(encodedBitboards);
+    function applyMove(uint gameId, uint24 moveValue) external {
+        GameState memory gameState = gamesState[gameId];
+        EncodedBitboards memory encodedBitboards = gamesEncodedBitboards[gameId];
 
+        uint64[12] memory bitboards = decodeBitboards(encodedBitboards);
         Move memory move = decodeMove(moveValue, bitboards);
 
         // check whether move is valid
@@ -979,13 +965,11 @@ contract Chess is IChess, DSTest {
         if (move.targetPiece == Piece.K){
             // black won
             gameState.winner = 1;
-            // TODO update game state
-            
+            gameState.state = 2;
         }else if (move.targetPiece == Piece.k){
             // white won
             gameState.winner = 0;
-
-            // TODO update game state
+            gameState.state = 2;
         }
         // game not over
         else {
@@ -1043,10 +1027,94 @@ contract Chess is IChess, DSTest {
                 gameState.side = 0;
             }
 
-            // TODO update game state and bitboards
+            // update game's bitboards
+            gamesEncodedBitboards[gameId] = encodeBitboards(bitboards);
         }
+
+        // update game's state
+        gamesState[gameId] = gameState;
+    }
+
+    function createGame(uint gameId) external {
+        require(gamesState[gameId].state == 0, "Game exists");
+
+        // initialise game state
+        GameState memory _gameState;
+        _gameState.state = 1;
+        _gameState.winner = 2;
+        _gameState.bkC = true;
+        _gameState.bqC = true;
+        _gameState.wkC = true;
+        _gameState.wqC = true;
+
+        // initialise game bitboards to default state
+        EncodedBitboards memory _encodedBitboards;
+        _encodedBitboards.firstPieceB = 409769201286042520263222792183213245581751010221489323247665281;
+        _encodedBitboards.secondPieceB = 50216813883093446116141467080362626071217220652607417090048;
+        _encodedBitboards.thirdPieceB = 450546001518488005662056153843822856010275062222266303656230578156487049216;
+
+        gamesState[gameId] = _gameState;
+        gamesEncodedBitboards[gameId] = _encodedBitboards;
+    }
+
+    function getEncodedBitboardsInitialState() external pure returns (EncodedBitboards memory) {
+        uint64[12] memory bitboards =  [
+            // black pos
+            65280,
+            66,
+            36,
+            129,
+            8,
+            16,
+            // white pos
+            71776119061217280,
+            4755801206503243776,
+            2594073385365405696,
+            9295429630892703744,
+            576460752303423488,
+            1152921504606846976
+        ];
+
+        EncodedBitboards memory _encodedBitboards = encodeBitboards(bitboards);
+        return _encodedBitboards;
+
+        // emit log_named_uint("first", _encodedBitboards.firstPieceB);
+        // emit log_named_uint("second", _encodedBitboards.secondPieceB);
+        // emit log_named_uint("third", _encodedBitboards.thirdPieceB);
+
+        // assertTrue(false);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /**
     Move bits
     0000 0000 0000 0011 1111 source sq

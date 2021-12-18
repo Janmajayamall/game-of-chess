@@ -8,6 +8,14 @@ interface IChess {
         p, n, b, r, q, k, P, N, B, R, Q, K, uk
     }
 
+    enum MoveFlag {
+        NoFlag,
+        DoublePush,
+        Enpassant,
+        Castle,
+        PawnPromotion
+    }
+
     struct Move {
         uint64 sourceSq;
         uint64 targetSq; 
@@ -25,13 +33,6 @@ interface IChess {
         MoveFlag moveFlag;
     }
 
-    enum MoveFlag {
-        NoFlag,
-        DoublePush,
-        Enpassant,
-        Castle,
-        PawnPromotion
-    }
 
     struct EncodedBitboards {
         uint256 firstPieceB; // p, n, b, r 
@@ -40,6 +41,9 @@ interface IChess {
     }
 
     struct GameState {
+        // state
+        uint8 state; // 0 -> uninitialised, 1 -> active, 2 -> ended
+
         // playing side
         uint8 side; // 0 -> white, 1 -> black
 
