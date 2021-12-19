@@ -3,13 +3,19 @@
 pragma solidity ^0.8.0;
 // import "ds-test/test.sol";
 import "./interfaces/IChess.sol";
+import "./interfaces/IERC20.sol";
+import "./ERC1155.sol";
 
-contract Chess is IChess {
+contract Game is IChess, ERC1155 {
 
     bool isActive;
 
     // gameId => game's state
     mapping(uint => GameState) gamesState;
+
+    // selected markets -> marketId => gameId
+
+    // how to store max value?
 
     function getBishopAttacks(uint64 square, uint blockboard) internal pure returns (uint64 attacks){
         uint64 sr = square / 8;
@@ -1049,6 +1055,9 @@ contract Chess is IChess {
             }else{
                 gameState.side = 0;
             }
+
+            // increase move count
+            gameState.moveCount += 1;
         }
 
         // update game's state
@@ -1088,7 +1097,107 @@ contract Chess is IChess {
         gamesState[gameId] = _gameState;
     }
 
+
+    // function electMove(uint gameId, uint24 moveValue) external {
+    //     GameState memory _gameState = gamesState[gameId];
+
+    //     // check move validity against current game state
+    //     Move memory move = decodeMove(moveValue, _gameState.bitboards);
+    //     require(isMoveValid(_gameState, move), "Invalid move");
+
+    //     bytes32 moveId = getMoveId(gameId, _gameState.moveCount + 1, moveValue);
+
+    //     // check move does not already exists
+    //     require(markets[moveId].creator == address(0), "Move exists");
+
+       
+
+
+    // }
+
+
+    // buy -> probably just needs market id; check markets expiry using moveCount
+    // sell -> probably just needs market id; check markets expiry using moveCount
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

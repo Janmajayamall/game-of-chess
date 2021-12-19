@@ -53,6 +53,9 @@ interface IChess {
         // winner
         uint8 winner; // 0 -> white, 1 -> black, 2 -> draw
 
+        // moves count
+        uint16 moveCount;
+
         // enpassant
         uint64 enpassantSq;
 
@@ -61,5 +64,18 @@ interface IChess {
         bool bqC;
         bool wkC;
         bool wqC;
+    }
+
+    struct Market {
+        address creator;
+        uint24 moveValue;
+        uint16 moveCount;
+        uint8 side;
+        uint16 prob0x10000;
+    }
+
+    struct OutcomeReserves {
+        uint reserve0;
+        uint reserve1;
     }
 }
