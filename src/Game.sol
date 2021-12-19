@@ -3,10 +3,8 @@
 pragma solidity ^0.8.0;
 // import "ds-test/test.sol";
 import "./interfaces/IChess.sol";
-import "./interfaces/IERC20.sol";
-import "./ERC1155.sol";
 
-contract Game is IChess, ERC1155 {
+contract Game is IChess {
 
     bool isActive;
 
@@ -237,21 +235,34 @@ contract Game is IChess, ERC1155 {
         return false;
     }
 
-    function decodeMove(uint24 moveValue, uint64[12] memory bitboards) internal pure returns (Move memory move) {
-        move.sourceSq = moveValue & 63;
-        move.targetSq = moveValue & 4032 >> 6;
+    function decodeGameIdFromMoveValue(uint256 moveValue) internal pure returns (uint16 gameId){
+        gameId = uint16(moveValue >> 20);
+    }
 
-        uint pawnPromotion = moveValue & 61440 >> 12;
+     function decodeMoveCountFromMoveValue(uint256 moveValue) internal pure returns (uint16 gameId){
+        gameId = uint16(moveValue >> 36);
+    }
+
+
+    function decodeMove(uint256 moveValue, uint64[12] memory bitboards) internal pure returns (Move memory move) {
+        move.sourceSq = uint64(moveValue & 63);
+        move.targetSq = uint64((moveValue >> 6) & 63);
+
+        uint pawnPromotion = (moveValue >> 12) & 15;
         move.promotedToPiece = Piece.uk;
 
         // move flag
-        uint doublePushFlag = moveValue & 65536 >> 16;
-        uint enpassantFlag = moveValue & 131072 >> 17;
-        uint castleFlag = moveValue & 262144 >> 18;
-        uint sumFlags = doublePushFlag + enpassantFlag + castleFlag;
-        
-        require(pawnPromotion > 0 && pawnPromotion < 12 && sumFlags == 0 || sumFlags == 1 && pawnPromotion == 0 || pawnPromotion == 0 && sumFlags == 0, "Invalid flags");
+        uint doublePushFlag = (moveValue >> 16) & 1;
+        uint enpassantFlag = (moveValue >> 17) & 1;
+        uint castleFlag = (moveValue >> 18) & 1;
 
+        // game id
+        move.gameId = uint16(moveValue >> 20);
+        move.moveCount = uint16(moveValue >> 36);
+
+        // checkking flags
+        uint sumFlags = doublePushFlag + enpassantFlag + castleFlag;
+        require(pawnPromotion > 0 && pawnPromotion < 12 && sumFlags == 0 || sumFlags == 1 && pawnPromotion == 0 || pawnPromotion == 0 && sumFlags == 0, "Invalid flags");
         MoveFlag moveFlag = MoveFlag.NoFlag;
         if (pawnPromotion != 0){
             moveFlag = MoveFlag.PawnPromotion;
@@ -265,6 +276,7 @@ contract Game is IChess, ERC1155 {
         }
         move.moveFlag = moveFlag;
 
+        // checking squares
         if (move.targetSq > move.sourceSq){
             move.moveBySq = move.targetSq - move.sourceSq;
             move.moveLeftShift = true;
@@ -982,7 +994,7 @@ contract Game is IChess, ERC1155 {
         return true;
     }
 
-    function applyMove(uint gameId, uint24 moveValue) external {
+    function applyMove(uint gameId, uint24 moveValue) internal {
         GameState memory gameState = gamesState[gameId];
 
         Move memory move = decodeMove(moveValue, gameState.bitboards);
@@ -1218,12 +1230,18 @@ contract Game is IChess, ERC1155 {
 
 /**
     Move bits
-    0000 0000 0000 0011 1111 source sq
-    0000 0000 1111 1100 0000 target sq
-    0000 1111 0000 0000 0000 promoted piece
-    0001 0000 0000 0000 0000 double push flag
-    0010 0000 0000 0000 0000 enpassant flat
-    0100 0000 0000 0000 0000 castle flag
+   0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0011 1111 source sq
+   0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 1111 1100 0000 target sq
+   0000 0000 0000 0000 0000 0000 0000 0000 0000 1111 0000 0000 0000 promoted piece
+   0000 0000 0000 0000 0000 0000 0000 0000 0001 0000 0000 0000 0000 double push flag
+   0000 0000 0000 0000 0000 0000 0000 0000 0010 0000 0000 0000 0000 enpassant flat
+   0000 0000 0000 0000 0000 0000 0000 0000 0100 0000 0000 0000 0000 castle flag
+   0000 0000 0000 0000 1111 1111 1111 1111 0000 0000 0000 0000 0000 game id
+   1111 1111 1111 1111 0000 0000 0000 0000 0000 0000 0000 0000 0000 move count
+                             gameid    // 
+                             moveCount // 16 
+    52 bits. 
+    uint56 since 52 isn't present; probably can use extra bits to crunch in somme extra info
  */
 
 /**

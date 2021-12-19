@@ -17,6 +17,9 @@ interface IChess {
     }
 
     struct Move {
+        uint16 gameId;
+        uint16 moveCount;
+
         uint64 sourceSq;
         uint64 targetSq; 
         uint64 moveBySq; 
