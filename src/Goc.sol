@@ -11,21 +11,22 @@ contract Goc is Game, ERC1155, DSTest {
 
     mapping(uint256 => Market) markets;
     mapping(uint256 => address) marketCreators;
-    mapping(uint256 => OutcomeReserves) outcomeReserves;
+
     uint256 cReserves;
+    mapping(uint256 => OutcomeReserves) outcomeReserves;
+
+    mapping(uint256 => bool) chosenMoveValues;
+    mapping(uint16 => uint) gamesLastMoveTimestamp;
 
     address constant cToken = address(0);
 
-    /**
-        MOVE MANAGER STUFF
-    */
-    // for every move, store market with highest probability 
-    // gameId => moveCount => Market
-    mapping(uint16 => mapping(uint16 => uint256)) chosenMoveValues;
-    // gameId => lastMoveTimestamp
-    mapping(uint16 => uint) gamesLastMoveTimestamp;
+    address manager;
 
-    function getOutcomeReservesTokenIds(uint256 _moveValue) public returns (uint oToken0Id, uint oToken1Id){
+    constructor(address _manager) {
+        manager = _manager;
+    }
+
+    function getOutcomeReservesTokenIds(uint256 _moveValue) public pure returns (uint oToken0Id, uint oToken1Id){
         oToken0Id = uint(keccak256(abi.encode(_moveValue, 0)));
         oToken1Id = uint(keccak256(abi.encode(_moveValue, 1)));
     }
@@ -38,12 +39,14 @@ contract Goc is Game, ERC1155, DSTest {
         // check game is in valid state
         uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
         GameState memory _gameState = gamesState[_gameId];
-        require(_gameState.state != 0, "Invalid GameId");
+        require(_gameState.state == 1, "Invalid move");
 
-        // decode move
-        Move memory _move = decodeMove(_moveValue, _gameState.bitboards);
-        // check move validity against current game state
-        require(isMoveValid(_gameState, _move), "Invalid move");
+        {
+            // decode move
+            MoveMetadata memory _moveMetadata = decodeMoveMetadataFromMoveValue(_moveValue, _gameState.bitboards);
+            // check move validity against current game state
+            require(isMoveValid(_gameState, _moveMetadata), "Invalid move");
+        }
 
         // check whether move already exists
         require(marketCreators[_moveValue] == address(0), "Market exists!");
@@ -71,7 +74,6 @@ contract Goc is Game, ERC1155, DSTest {
         // hurray market created; TODO emit event
     }
 
-    // add buy
     function buy(uint amount0, uint amount1, address to, uint256 _moveValue) external {
         require(marketCreators[_moveValue] != address(0), "Market Invalid");
 
@@ -111,7 +113,6 @@ contract Goc is Game, ERC1155, DSTest {
         outcomeReserves[_moveValue] = _outcomeReserves;
     }
 
-    // add sell
     function sell(uint amountOut, address to, uint256 _moveValue) external {
         require(marketCreators[_moveValue] != address(0), "Market Invalid");
 
@@ -144,18 +145,14 @@ contract Goc is Game, ERC1155, DSTest {
         _outcomeReserves.reserve1 = nReserve1;
         outcomeReserves[_moveValue] = _outcomeReserves;
     }
-
-    // redeem 
+ 
     function redeemWins(uint256 _moveValue, address to) external {
         require(marketCreators[_moveValue] != address(0), "Market invalid");
 
         uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
-        uint16 _moveCount = decodeGameIdFromMoveValue(_moveValue);
-
         GameState memory _gameState = gamesState[_gameId];
-        uint256 chosenMoveValue = chosenMoveValues[_gameId][_moveCount];
-
-        require(_gameState.state == 2 && chosenMoveValue == _moveValue);
+        bool isChosenMove = chosenMoveValues[_moveValue];
+        require(_gameState.state == 2 && isChosenMove == true);
 
         // amount0In and amount1In
         OutcomeReserves memory _outcomeReserves = outcomeReserves[_moveValue];
@@ -189,14 +186,12 @@ contract Goc is Game, ERC1155, DSTest {
         require(marketCreators[_moveValue] != address(0), "Market invalid");
 
         uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
-        uint16 _moveCount = decodeGameIdFromMoveValue(_moveValue);
-
+        uint16 _moveCount = decodeMoveCountFromMoveValue(_moveValue);
         GameState memory _gameState = gamesState[_gameId];
-        uint256 chosenMoveValue = chosenMoveValues[_gameId][_moveCount];
-
+        bool isChosenMove = chosenMoveValues[_moveValue];
         require(
             (_gameState.moveCount + 1 > _moveCount || _gameState.state == 2) 
-            && chosenMoveValue != _moveValue                
+            && isChosenMove == false                
         );
 
         // amount0In and amount1In
@@ -217,78 +212,75 @@ contract Goc is Game, ERC1155, DSTest {
         // emit redeem
     }
 
-    // add redeem (for both - winning and market not being chosen as choice)
-    /**
-        Rouch sketch of redeem
-        1. Only allow redeem if moveCount is old && market wasn't chosen
-            OR 
-           game has ended && ended in their favor
-        2. 
-     */
+    // manager functions 
+    function makeMove(uint256 _moveValue) external {
+        require(manager == msg.sender, "Auth ERR");
+        require(marketCreators[_moveValue] != address(0), "Invalid Market");
 
-    // function makeMove(uint32 _gameId) external {
-    //     uint16 moveCount = gamesState[_gameId].moveCount;
-    //     Market memory winnerMarket = moveMarketWinners[_gameId][moveCount+1];
-    //     require(winnerMarket.creator != address(0), "0 move markets");
+        // Time elapsed since last move should be atleast 24 hours
+        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
+        uint lastMoveTimestamp = gamesLastMoveTimestamp[_gameId];
+        require(block.timestamp - lastMoveTimestamp > 24*60*60, "Time Err");
 
-    //     // Time elapsed since last move should be atleast 24 hours
-    //     uint lastMoveTimestamp = gamesLastMoveTimestamp[_gameId];
-    //     require(block.timestamp - lastMoveTimestamp > 24*60*60, "Time Err");
+        // apply move to the game state
+        applyMove(_moveValue);
 
-    //     // apply move to the game state
-    //     applyMove(_gameId, winnerMarket.moveValue);
+        // update timestamp
+        gamesLastMoveTimestamp[_gameId] = block.timestamp;
 
-    //     // update timestamp
-    //     gamesLastMoveTimestamp[_gameId] = block.timestamp;
+        // set _moveValue as chosen move
+        chosenMoveValues[_moveValue] = true;
+
+        // emit makeMove
+    }
+
+    
+
+
+
+
+
+
+    // function test_decodeMove() public {
+    //     uint w = 2737 & 63;
+    //     // emit log_named_uint("w ", w); 
+    //     // Move memory _move = decodeMove(2737, [
+    //     //     // initial black pos
+    //     //     65280,
+    //     //     66,
+    //     //     36,
+    //     //     129,
+    //     //     8,
+    //     //     16,
+    //     //     // initial white pos
+    //     //     71776119061217280,
+    //     //     4755801206503243776,
+    //     //     2594073385365405696,
+    //     //     9295429630892703744,
+    //     //     576460752303423488,
+    //     //     1152921504606846976
+    //     // ]);
     // }
 
+    // mapping(uint => uint) single;
+    // mapping(uint => mapping (uint => uint)) double;
+    // mapping(uint => mapping (uint => mapping (uint => uint))) triple;
 
+    // function setUp() public {
+    //     single[9] = 10;
+    //     double[9][9] = 10;
+    //     triple[9][9][9] = 10;
+    // }
 
+    // function test_single() public {
+    //     uint v = single[9];
+    // }
 
+    // function test_double() public {
+    //     uint v = double[9][9];
+    // }
 
-
-
-
-    function test_decodeMove() public {
-        uint w = 2737 & 63;
-        // emit log_named_uint("w ", w); 
-        // Move memory _move = decodeMove(2737, [
-        //     // initial black pos
-        //     65280,
-        //     66,
-        //     36,
-        //     129,
-        //     8,
-        //     16,
-        //     // initial white pos
-        //     71776119061217280,
-        //     4755801206503243776,
-        //     2594073385365405696,
-        //     9295429630892703744,
-        //     576460752303423488,
-        //     1152921504606846976
-        // ]);
-    }
-
-    mapping(uint => uint) single;
-    mapping(uint => mapping (uint => uint)) double;
-    mapping(uint => mapping (uint => mapping (uint => uint))) triple;
-
-    function setUp() public {
-        single[9] = 10;
-        double[9][9] = 10;
-        triple[9][9][9] = 10;
-    }
-
-    function test_single() public {
-        uint v = single[9];
-    }
-
-    function test_double() public {
-        uint v = double[9][9];
-    }
-
-    function test_triple() public {
-        uint v = triple[9][9][9];
-    }
+    // function test_triple() public {
+    //     uint v = triple[9][9][9];
+    // }
 }

@@ -5,15 +5,11 @@ pragma solidity ^0.8.0;
 import "./interfaces/IChess.sol";
 
 contract Game is IChess {
-
-    bool isActive;
-
     // gameId => game's state
-    mapping(uint => GameState) gamesState;
-
-    // selected markets -> marketId => gameId
-
-    // how to store max value?
+    mapping(uint16 => GameState) public gamesState;
+    
+    // game index
+    uint16 public gameIndex;
 
     function getBishopAttacks(uint64 square, uint blockboard) internal pure returns (uint64 attacks){
         uint64 sr = square / 8;
@@ -239,71 +235,63 @@ contract Game is IChess {
         gameId = uint16(moveValue >> 20);
     }
 
-     function decodeMoveCountFromMoveValue(uint256 moveValue) internal pure returns (uint16 gameId){
+    function decodeMoveCountFromMoveValue(uint256 moveValue) internal pure returns (uint16 gameId){
         gameId = uint16(moveValue >> 36);
     }
 
+    function decodeMoveMetadataFromMoveValue(uint256 moveValue, uint64[12] memory bitboards) internal pure returns (MoveMetadata memory moveMetadata) {
+        moveMetadata.sourceSq = uint64(moveValue & 63);
+        moveMetadata.targetSq = uint64((moveValue >> 6) & 63);
+        moveMetadata.side = (moveValue >> 19) & 1;
+        moveMetadata.moveCount = uint16(moveValue >> 36);
 
-    function decodeMove(uint256 moveValue, uint64[12] memory bitboards) internal pure returns (Move memory move) {
-        move.sourceSq = uint64(moveValue & 63);
-        move.targetSq = uint64((moveValue >> 6) & 63);
-
+        // flags
         uint pawnPromotion = (moveValue >> 12) & 15;
-        move.promotedToPiece = Piece.uk;
-
-        // move flag
         uint doublePushFlag = (moveValue >> 16) & 1;
         uint enpassantFlag = (moveValue >> 17) & 1;
         uint castleFlag = (moveValue >> 18) & 1;
 
-        // side
-        move.side = (moveValue >> 19) & 1;
-
-        // game id
-        move.gameId = uint16(moveValue >> 20);
-        move.moveCount = uint16(moveValue >> 36);
-
-        // checkking flags
+        // set flags
         uint sumFlags = doublePushFlag + enpassantFlag + castleFlag;
-        require(pawnPromotion > 0 && pawnPromotion < 12 && sumFlags == 0 || sumFlags == 1 && pawnPromotion == 0 || pawnPromotion == 0 && sumFlags == 0, "Invalid flags");
-        MoveFlag moveFlag = MoveFlag.NoFlag;
+        require(pawnPromotion >= 0 && pawnPromotion < 12 && sumFlags == 0 || sumFlags == 1 && pawnPromotion == 0 || pawnPromotion == 0 && sumFlags == 0, "Invalid flags");
+        moveMetadata.moveFlag = MoveFlag.NoFlag;
+        moveMetadata.promotedToPiece = Piece.uk;
         if (pawnPromotion != 0){
-            moveFlag = MoveFlag.PawnPromotion;
-            move.promotedToPiece = Piece(pawnPromotion);
+            moveMetadata.moveFlag = MoveFlag.PawnPromotion;
+            moveMetadata.promotedToPiece = Piece(pawnPromotion);
         }else if (doublePushFlag == 1){
-            moveFlag = MoveFlag.DoublePush;
+            moveMetadata.moveFlag = MoveFlag.DoublePush;
         }else if (enpassantFlag == 1){
-            moveFlag = MoveFlag.Enpassant;
+            moveMetadata.moveFlag = MoveFlag.Enpassant;
         }else if (castleFlag == 1){
-            moveFlag = MoveFlag.Castle;
+           moveMetadata.moveFlag = MoveFlag.Castle;
         }
-        move.moveFlag = moveFlag;
 
-        // checking squares
-        if (move.targetSq > move.sourceSq){
-            move.moveBySq = move.targetSq - move.sourceSq;
-            move.moveLeftShift = true;
-        }else if ( move.targetSq < move.sourceSq){
-            move.moveBySq = move.sourceSq - move.targetSq;
-            move.moveLeftShift = false;
+        // set squares
+        if (moveMetadata.targetSq > moveMetadata.sourceSq){
+            moveMetadata.moveBySq = moveMetadata.targetSq - moveMetadata.sourceSq;
+            moveMetadata.moveLeftShift = true;
+        }else if ( moveMetadata.targetSq < moveMetadata.sourceSq){
+            moveMetadata.moveBySq = moveMetadata.sourceSq - moveMetadata.targetSq;
+            moveMetadata.moveLeftShift = false;
         }
-        require(move.targetSq != move.sourceSq, "No move");
+        require(moveMetadata.targetSq != moveMetadata.sourceSq, "No move");
 
-        // find the piece being moved
-        move.sourcePiece = Piece.uk;
-        move.targetPiece = Piece.uk;
-        move.sourcePieceBitBoard = uint64(1) << move.sourceSq;
-        move.targetPieceBitBoard = uint64(1) << move.targetSq;
-        for (uint64 index = 1; index < bitboards.length; index++) {
+        // set pieces
+        moveMetadata.sourcePiece = Piece.uk;
+        moveMetadata.targetPiece = Piece.uk;
+        moveMetadata.sourcePieceBitBoard = uint64(1) << moveMetadata.sourceSq;
+        moveMetadata.targetPieceBitBoard = uint64(1) << moveMetadata.targetSq;
+        for (uint64 index = 0; index < bitboards.length; index++) {
             uint64 board = bitboards[index];
-            if ((move.sourcePieceBitBoard & board)>0){
-                move.sourcePiece = Piece(index);
+            if ((moveMetadata.sourcePieceBitBoard & board)>0){
+                moveMetadata.sourcePiece = Piece(index);
             }
-            if ((move.targetPieceBitBoard & board)>0){
-                move.targetPiece = Piece(index);
+            if ((moveMetadata.targetPieceBitBoard & board)>0){
+                moveMetadata.targetPiece = Piece(index);
             }
         }
-        require(move.sourcePiece != Piece.uk, "Unknown Piece");
+        require(moveMetadata.sourcePiece != Piece.uk, "Unknown Piece");
     }
 
     function getBlockerboard(uint64[12] memory bitboards) internal pure returns (uint64 blockerboard){
@@ -322,13 +310,21 @@ contract Game is IChess {
         blockerboard |= bitboards[uint(Piece.K)];
     }
 
-    function isMoveValid(GameState memory gameState, Move memory move) public pure returns (bool) {    
+    function isMoveValid(GameState memory gameState, MoveMetadata memory move) public pure returns (bool) {    
         if (gameState.state != 1){
             return false;
         }
 
+        if (move.side != gameState.side) {
+            return false;
+        }
+
+        if (gameState.moveCount + 1 != move.moveCount){
+            return false;
+        }
+
         // source piece should match playing side
-        if (gameState.side == 0 && uint(move.sourcePiece) < 6){
+        if (gameState.side == 0 && uint(move.sourcePiece) < 6 ){
             // sourcePiece is black, when side is white
             return false;
         }
@@ -997,13 +993,13 @@ contract Game is IChess {
         return true;
     }
 
-    function applyMove(uint gameId, uint24 moveValue) internal {
-        GameState memory gameState = gamesState[gameId];
-
-        Move memory move = decodeMove(moveValue, gameState.bitboards);
+    function applyMove(uint256 _moveValue) internal {
+        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
+        GameState memory gameState = gamesState[_gameId];
+        MoveMetadata memory move = decodeMoveMetadataFromMoveValue(_moveValue, gameState.bitboards);
 
         // check whether move is valid
-        require(isMoveValid(gameState, move));
+        require(isMoveValid(gameState, move), "Invalid move");
 
         // check game over
         if (move.targetPiece == Piece.K){
@@ -1076,11 +1072,11 @@ contract Game is IChess {
         }
 
         // update game's state
-        gamesState[gameId] = gameState;
+        gamesState[_gameId] = gameState;
     }
 
-    function createGame(uint gameId) external {
-        require(gamesState[gameId].state == 0, "Game exists");
+    function newGame() external {
+        uint16 _gameIndex = gameIndex;
 
         // initialise game state
         GameState memory _gameState;
@@ -1091,7 +1087,7 @@ contract Game is IChess {
         _gameState.wkC = true;
         _gameState.wqC = true;
 
-        // initia bitbaords
+        // initial bitbaords
         _gameState.bitboards = [
             // initial black pos
             65280,
@@ -1109,30 +1105,12 @@ contract Game is IChess {
             1152921504606846976
         ];
 
-        gamesState[gameId] = _gameState;
+        // add game
+        gamesState[_gameIndex + 1] = _gameState;
+
+        // update index
+        gameIndex = _gameIndex + 1;
     }
-
-
-    // function electMove(uint gameId, uint24 moveValue) external {
-    //     GameState memory _gameState = gamesState[gameId];
-
-    //     // check move validity against current game state
-    //     Move memory move = decodeMove(moveValue, _gameState.bitboards);
-    //     require(isMoveValid(_gameState, move), "Invalid move");
-
-    //     bytes32 moveId = getMoveId(gameId, _gameState.moveCount + 1, moveValue);
-
-    //     // check move does not already exists
-    //     require(markets[moveId].creator == address(0), "Move exists");
-
-       
-
-
-    // }
-
-
-    // buy -> probably just needs market id; check markets expiry using moveCount
-    // sell -> probably just needs market id; check markets expiry using moveCount
 }
 
 

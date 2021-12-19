@@ -16,11 +16,9 @@ interface IChess {
         PawnPromotion
     }
 
-    struct Move {
-        uint16 gameId;
-        uint16 moveCount;
-
+    struct MoveMetadata {
         uint side;
+        uint16 moveCount;
 
         uint64 sourceSq;
         uint64 targetSq; 
