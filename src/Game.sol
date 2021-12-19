@@ -256,6 +256,9 @@ contract Game is IChess {
         uint enpassantFlag = (moveValue >> 17) & 1;
         uint castleFlag = (moveValue >> 18) & 1;
 
+        // side
+        move.side = (moveValue >> 19) & 1;
+
         // game id
         move.gameId = uint16(moveValue >> 20);
         move.moveCount = uint16(moveValue >> 36);
@@ -1236,6 +1239,7 @@ contract Game is IChess {
    0000 0000 0000 0000 0000 0000 0000 0000 0001 0000 0000 0000 0000 double push flag
    0000 0000 0000 0000 0000 0000 0000 0000 0010 0000 0000 0000 0000 enpassant flat
    0000 0000 0000 0000 0000 0000 0000 0000 0100 0000 0000 0000 0000 castle flag
+   0000 0000 0000 0000 0000 0000 0000 0000 1000 0000 0000 0000 0000 side
    0000 0000 0000 0000 1111 1111 1111 1111 0000 0000 0000 0000 0000 game id
    1111 1111 1111 1111 0000 0000 0000 0000 0000 0000 0000 0000 0000 move count
                              gameid    // 

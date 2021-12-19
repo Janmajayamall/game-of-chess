@@ -21,7 +21,7 @@ contract Goc is Game, ERC1155, DSTest {
     */
     // for every move, store market with highest probability 
     // gameId => moveCount => Market
-    mapping(uint16 => mapping(uint16 => uint256)) leadingMarketForMoves;
+    mapping(uint16 => mapping(uint16 => uint256)) chosenMoveValues;
     // gameId => lastMoveTimestamp
     mapping(uint16 => uint) gamesLastMoveTimestamp;
 
@@ -145,16 +145,77 @@ contract Goc is Game, ERC1155, DSTest {
         outcomeReserves[_moveValue] = _outcomeReserves;
     }
 
-    // // redeem 
-    // function redeem(bytes32 _marketId) external {
-    //     Market memory _market = markets[_marketId];
-    //     require(_market.creator == address(0), "Market invalid");
+    // redeem 
+    function redeemWins(uint256 _moveValue, address to) external {
+        require(marketCreators[_moveValue] != address(0), "Market invalid");
 
-    //     GameState memory _gameState = gamesState[_market.gameId];
-    //     Market memory moveMarketWinner = moveMarketWinners[_market.gameId][_market.moveCount];
+        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
+        uint16 _moveCount = decodeGameIdFromMoveValue(_moveValue);
 
-    //     require(_gameState.state == 2 || _gameState.moveCount + 1 > _market.moveCount);
-    // }
+        GameState memory _gameState = gamesState[_gameId];
+        uint256 chosenMoveValue = chosenMoveValues[_gameId][_moveCount];
+
+        require(_gameState.state == 2 && chosenMoveValue == _moveValue);
+
+        // amount0In and amount1In
+        OutcomeReserves memory _outcomeReserves = outcomeReserves[_moveValue];
+        (uint oToken0Id, uint oToken1Id) = getOutcomeReservesTokenIds(_moveValue);
+        uint amount0In = balanceOf(address(this), oToken0Id) - _outcomeReserves.reserve0;
+        uint amount1In = balanceOf(address(this), oToken1Id) - _outcomeReserves.reserve1;
+
+        // burn received tokens
+        _burn(address(this), oToken0Id, amount0In);
+        _burn(address(this), oToken1Id, amount1In);
+
+        // win amount
+        uint winAmount;
+        uint side = _moveValue >> 19 & 1;
+        if (_gameState.winner == 0 && side == 0){
+            winAmount = amount0In;
+        }else if (_gameState.winner == 1 && side == 1){
+            winAmount = amount1In;
+        }else if (_gameState.winner == 2){
+            winAmount = amount0In + amount1In;
+        }
+
+        // transfer win amount and update cReservers
+        IERC20(cToken).transfer(to, winAmount);
+        cReserves -= winAmount;
+
+        // emit redeemWins;
+    }
+
+    function redeem(uint256 _moveValue, address to) external {
+        require(marketCreators[_moveValue] != address(0), "Market invalid");
+
+        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
+        uint16 _moveCount = decodeGameIdFromMoveValue(_moveValue);
+
+        GameState memory _gameState = gamesState[_gameId];
+        uint256 chosenMoveValue = chosenMoveValues[_gameId][_moveCount];
+
+        require(
+            (_gameState.moveCount + 1 > _moveCount || _gameState.state == 2) 
+            && chosenMoveValue != _moveValue                
+        );
+
+        // amount0In and amount1In
+        OutcomeReserves memory _outcomeReserves = outcomeReserves[_moveValue];
+        (uint oToken0Id, uint oToken1Id) = getOutcomeReservesTokenIds(_moveValue);
+        uint amount0In = balanceOf(address(this), oToken0Id) - _outcomeReserves.reserve0;
+        uint amount1In = balanceOf(address(this), oToken1Id) - _outcomeReserves.reserve1;
+
+        // burn received tokens
+        _burn(address(this), oToken0Id, amount0In);
+        _burn(address(this), oToken1Id, amount1In);
+
+        // amountOut
+        uint amountOut = amount0In + amount1In;
+        IERC20(cToken).transfer(to, amountOut);
+        cReserves -= amountOut;
+
+        // emit redeem
+    }
 
     // add redeem (for both - winning and market not being chosen as choice)
     /**
@@ -164,11 +225,6 @@ contract Goc is Game, ERC1155, DSTest {
            game has ended && ended in their favor
         2. 
      */
-
-    // move manager functions
-    function calculate0Probx10000(OutcomeReserves memory _outcomeReserves) internal returns (uint16 prob){
-        prob = uint16(_outcomeReserves.reserve0 * 10000 / (_outcomeReserves.reserve0 + _outcomeReserves.reserve1));
-    }
 
     // function makeMove(uint32 _gameId) external {
     //     uint16 moveCount = gamesState[_gameId].moveCount;

@@ -20,6 +20,8 @@ interface IChess {
         uint16 gameId;
         uint16 moveCount;
 
+        uint side;
+
         uint64 sourceSq;
         uint64 targetSq; 
         uint64 moveBySq; 
