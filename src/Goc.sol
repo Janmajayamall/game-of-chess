@@ -127,6 +127,44 @@ contract Goc is Game, ERC1155 {
     }
 
     // add sell
+    function sell(uint amountOut, address to, bytes32 _marketId) external {
+        Market _market = markets[_marketId];
+        require(_market.creator != address(0), "Market Invalid");
+
+        // market should not have expired
+        GameState _gameState = gamesState[_market.gameId];
+        require(_gameState.moveCount + 1 == _market.moveCount, "Market expired");
+
+        // optimistically transfer amountOut
+        address _cToken = cToken;
+        IERC20(_cToken).transfer(to, amountOut);
+        cReserves -= amountOut;
+
+        // amount0In and amount1In
+        OutcomeReserves memory _outcomeReserves = outcomeReserves[_marketId];
+        (uint oToken0Id, uint oToken1Id) = getOutcomeReservesTokenIds(_marketId);
+        uint amount0In = balanceOf(address(this), oToken0Id) - _outcomeReserves.reserve0;
+        uint amount1In = balanceOf(address(this), oToken1Id) - _outcomeReserves.reserve1;
+
+        // check invariance
+        uint nReserve0 = _outcomeReserves.reserve0 + amount0In - amountOut;
+        uint nReserve1 = _outcomeReserves.reserve1 + amount1In - amountOut;
+        require((nReserve0 * nReserve1) >= (_outcomeReserves.reserve0 * _outcomeReserves.reserve1), "ERR: INV");
+
+        // update reserves
+        _outcomeReserves.reserve0 = nReserve0;
+        _outcomeReserves.reserve1 = nReserve1;
+        outcomeReserves[_marketId] = _outcomeReserves;
+
+        // update market
+        _market.prob0x10000 = calculate0Probx10000(_outcomeReserves);
+        markets[_marketId] = _market;
+
+        // update market leader
+        if (moveMarketWinners[_market.gameId][_market.moveCount].prob0x10000 < _market.prob0x10000){
+            moveMarketWinners[_market.gameId][_market.moveCount] = _market;
+        }
+    }
 
     // add redeem (for both - winning and market not being chosen as choice)
     /**
