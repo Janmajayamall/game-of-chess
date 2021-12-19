@@ -20,7 +20,9 @@ contract Goc is Game, ERC1155 {
     */
     // for every move, store market with highest probability 
     // gameId => moveCount => Market
-    mapping(uint => mapping(uint8 => Market)) moveMarketWinners;
+    mapping(uint => mapping(uint16 => Market)) moveMarketWinners;
+    // gameId => lastMoveTimestamp
+    mapping(uint => uint) gamesLastMoveTimestamp;
 
     function getOutcomeReservesTokenIds(bytes32 _marketId) public returns (uint oToken0Id, uint oToken1Id){
         oToken0Id = uint(keccak256(abi.encode(_marketId, 0)));
@@ -31,7 +33,7 @@ contract Goc is Game, ERC1155 {
         return keccak256(abi.encode(_gameId, _moveCount, _moveValue));
     }
 
-    function createAndFundMarket(uint _gameId, uint24 _moveValue, address _creator) external {
+    function createAndFundMarket(uint32 _gameId, uint24 _moveValue, address _creator) external {
         GameState memory _gameState = gamesState[_gameId];
 
         // check move validity against current game state
@@ -47,6 +49,7 @@ contract Goc is Game, ERC1155 {
         address _cToken = cToken;
         uint256 _cReserves = cReserves;
         uint fundingAmount = IERC20(_cToken).balanceOf(address(this)) - _cReserves;
+        cReserves = _cReserves + fundingAmount;
 
         // set outcome reserves
         (uint oToken0Id, uint oToken1Id) = getOutcomeReservesTokenIds(_marketId);
@@ -63,8 +66,8 @@ contract Goc is Game, ERC1155 {
         _market.moveValue = _moveValue;
         _market.moveCount = _gameState.moveCount;
         _market.side = _gameState.side;
-        _market.yesProbabity = 5000;
         _market.prob0x10000 = calculate0Probx10000(_outcomeReserves);
+        _market.gameId = _gameId;
         markets[_marketId] = _market;
 
         // update market leader
@@ -72,15 +75,87 @@ contract Goc is Game, ERC1155 {
             moveMarketWinners[_gameId][_move] = _market;
         }
 
+        require(fundingAmount > 0, "Funding: 0");
+
         // hurray market created; TODO emit event
     }
 
+    // add buy
+    function buy(uint amount0, uint amount1, address to, bytes32 _marketId) external {
+        Market _market = markets[_marketId];
+        require(_market.creator != address(0), "Market Invalid");
+
+        // market should not have expired
+        GameState _gameState = gamesState[_market.gameId];
+        require(_gameState.moveCount + 1 == _market.moveCount, "Market expired");
+
+        // amountIn
+        address _cToken = cToken;
+        uint256 _cReserves = cReserves;
+        uint amountIn = IERC20(_cToken).balanceOf(address(this)) - _cReserves;
+        cReserves = _cReserves + amountIn;
+        
+        (uint oToken0Id, uint oToken1Id) = getOutcomeReservesTokenIds(_marketId);
+        OutcomeReserves memory _outcomeReserves = outcomeReserves[_marketId];
+
+        // mint outcome tokens
+        _mint(address(this), oToken0Id, amountIn, '');
+        _mint(address(this), oToken1Id, amountIn, '');
+
+        // optimistically transfer
+        safeTransferFrom(address(this), to, oToken0Id, amount0, '');
+        safeTransferFrom(address(this), to, oToken1Id, amount1, '');
+
+        // check invariance
+        uint nReserve0 = _outcomeReserves.reserve0 + amountIn - amount0;
+        uint nReserve1 = _outcomeReserves.reserve1 + amountIn - amount1;
+        require((nReserve0*nReserve1) >= (_outcomeReserves.reserve0*_outcomeReserves.reserve1), "ERR: INV");
+
+        // update reserves
+        _outcomeReserves.reserve0 = nReserve0;
+        _outcomeReserves.reserve1 = nReserve1;
+        outcomeReserves[_marketId] = _outcomeReserves;
+
+        // update market
+        _market.prob0x10000 = calculate0Probx10000(_outcomeReserves);
+        markets[_marketId] = _market;
+
+        // update market leader
+        if (moveMarketWinners[_market.gameId][_market.moveCount].prob0x10000 < _market.prob0x10000){
+            moveMarketWinners[_market.gameId][_market.moveCount] = _market;
+        }
+    }
+
+    // add sell
+
+    // add redeem (for both - winning and market not being chosen as choice)
+    /**
+        Rouch sketch of redeem
+        1. Only allow redeem if moveCount is old && market wasn't chosen
+            OR 
+           game has ended && ended in their favor
+        2. 
+     */
+
+    // move manager functions
     function calculate0Probx10000(OutcomeReserves memory _outcomeReserves) internal returns (uint16 prob){
         prob = _outcomeReserves.reserve0 * 10000 / (_outcomeReserves.reserve0 + _outcomeReserves.reserve1);
     }
 
-    function updateMoveMarketLeader(uint _gameId, uint _marketId) internal {
-        uint prob0x10000 = calculate0Probx10000(_outcomeReserves);
+    function makeMove(uint32 _gameId) external {
+        uint16 moveCount = gamesState[_gameId].moveCount;
+        Market winnerMarket = moveMarketWinners[gameId][moveCount+1];
+        require(winnerMarket.creator != address(0), "0 move markets");
+
+        // Time elapsed since last move should be atleast 24 hours
+        uint lastMoveTimestamp = gamesLastMoveTimestamp[gameId];
+        require(block.timestamp - lastMoveTimestamp > 24*60*60, "Time Err");
+
+        // apply move to the game state
+        applyMove(_gameId, winnerMarket.moveValue);
+
+        // update timestamp
+        gamesLastMoveTimestamp[gameId] = block.timestamp;
     }
 
 }

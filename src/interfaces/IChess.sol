@@ -72,6 +72,7 @@ interface IChess {
         uint16 moveCount;
         uint8 side;
         uint16 prob0x10000;
+        uint32 gameId;
     }
 
     struct OutcomeReserves {
