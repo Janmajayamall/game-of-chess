@@ -668,107 +668,89 @@ contract Game is IChess {
 
         }
         
-        // white pawns
-        if (move.sourcePiece == Piece.P && (move.moveFlag == MoveFlag.NoFlag || move.moveFlag == MoveFlag.PawnPromotion)){
+        // white & black pawns
+        if ((move.sourcePiece == Piece.P || move.sourcePiece == Piece.p) && (move.moveFlag == MoveFlag.NoFlag || move.moveFlag == MoveFlag.PawnPromotion)){
             if (move.moveBySq != 8 && move.moveBySq != 9 && move.moveBySq != 7){
                 return false;
             }
 
-            // cannot move diagnol (i.e attack), unless target piece exists
-            if ((move.moveBySq == 9 || move.moveBySq == 7) && move.targetPiece == Piece.uk){
+            // white pawns can only move upwards & black pawns can only move downwards
+            if (
+                (move.sourcePiece != Piece.P || move.moveLeftShift != false) &&
+                (move.sourcePiece != Piece.p || move.moveLeftShift != true)
+            ){
                 return false;
             }
 
-            // white pawns can only move upwards
-            if (move.moveLeftShift != false){
-                return false;
-            }
+            // diagonal move (i.e.) attack
+            if (move.moveBySq == 9 || move.moveBySq == 7){
+                // can only move diagonal if target piece present || it is a enpassant sq
+                if (move.targetPiece == Piece.uk && move.targetSq != gameState.enpassantSq){
+                    return false;
+                }
 
-            // cannot move forward if something is in front
-            if (move.moveBySq == 8 && (uint64(1) << move.sourceSq - 8 & blockerboard) > 0){
-                return false;
-            }
+                // white pawns
+                if (move.sourcePiece == Piece.P){
+                    // check falling off right edge
+                    if (move.moveBySq == 7 && (move.sourcePieceBitBoard >> 7 & notAFile) == 0){
+                        return false;
+                    }
+                    // check falling off left edge
+                    if (move.moveBySq == 9 && (move.sourcePieceBitBoard >> 9 & notHFile) == 0){
+                        return false;
+                    }
+                }
+                // black pawns
+                else if(move.sourcePiece == Piece.p){
+                    // check falling off right edge
+                    if (move.moveBySq == 9 && (move.sourcePieceBitBoard << 9 & notAFile) == 0){
+                        return false;
+                    }
 
-            // cannot go out of the board; white pawns can't move forward when on rank 8
-            if (move.sourcePieceBitBoard >> move.moveBySq == 0){
-                return false;
-            }
+                    // check falling off right edge
+                    if (move.moveBySq == 7 && (move.sourcePieceBitBoard << 7 & notHFile) == 0){
+                        return false;
+                    }
+                }
+            }else if (move.moveBySq == 8){
+                // targetSq should be empty
+                if (move.targetPiece != Piece.uk){
+                    return false;
+                }
 
-            // check falling off right edge
-            if (move.moveBySq == 7 && (move.sourcePieceBitBoard >> 7 & notAFile) == 0){
-                return false;
-            }
-
-            // check falling off left edge
-            if (move.moveBySq == 9 && (move.sourcePieceBitBoard >> 9 & notHFile) == 0){
+                // cannot go out of the board;
+                // up
+                if (move.sourcePieceBitBoard >> move.moveBySq == 0){
+                    return false;
+                }
+                // down
+                if (move.sourcePieceBitBoard << move.moveBySq == 0){
+                    return false;
+                }
+            }else {
                 return false;
             }
 
             // check for promotion
             if (move.moveFlag == MoveFlag.PawnPromotion){
-                // promoted piece cannot be unkown, cannot be a pawn, cannot be a black piece
-                if (move.promotedToPiece == Piece.uk || uint(move.promotedToPiece) < 6 || move.promotedToPiece == Piece.P){
+                // promoted piece cannot be unkown, cannot be a pawn
+                if (move.promotedToPiece == Piece.uk || uint(move.promotedToPiece) == 0 || uint(move.promotedToPiece) == 6){
                     return false;
                 }
 
-                // current rank should be 1
-                if (move.sourceSq / 8 != 1){
+                // white cannot promote black pice & vice versa
+                if ((move.sourcePiece != Piece.P || uint(move.promotedToPiece) < 6) && (move.sourcePiece != Piece.p || uint(move.promotedToPiece) >= 6)){
+                    return false;
+                }
+
+                // current rank should be 1 or 6
+                uint rank = move.sourceSq / 8;
+                if ((move.sourcePiece != Piece.P || rank != 1) && (move.sourcePiece != Piece.p || rank != 6)){
                     return false;
                 }
             }
         }   
 
-        // black pawns
-        if (move.sourcePiece == Piece.p && (move.moveFlag == MoveFlag.NoFlag || move.moveFlag == MoveFlag.PawnPromotion)){
-            if (move.moveBySq != 8 && move.moveBySq != 9 && move.moveBySq != 7){
-                return false;
-            }
-
-            // cannot move diagnol, unless target piece exists
-            if ((move.moveBySq == 9 || move.moveBySq == 7) && move.targetPiece == Piece.uk){
-                return false;
-            }
-
-            // black pawns can only move downwards
-            if (move.moveLeftShift != true){
-                return false;
-            }
-
-            // cannot move forward if something is in front
-            if (move.moveBySq == 8 && (uint64(1) << move.sourceSq + 8 & blockerboard) > 0){
-                return false;
-            }
-
-
-            // cannot go out of the board; black pawns can't move forward when on rank 1
-            if (move.sourcePieceBitBoard << move.moveBySq == 0){
-                return false;
-            }
-
-            // check falling off right edge
-            if (move.moveBySq == 9 && (move.sourcePieceBitBoard << 9 & notAFile) == 0){
-                return false;
-            }
-
-            // check falling off right edge
-            if (move.moveBySq == 7 && (move.sourcePieceBitBoard << 7 & notHFile) == 0){
-                return false;
-            }
-
-            // check for promotion
-            if (move.moveFlag == MoveFlag.PawnPromotion){
-                // promoted piece cannot be unkown, cannot be a pawn, cannot be a white piece
-                if (move.promotedToPiece == Piece.uk || uint(move.promotedToPiece) >= 6 || move.promotedToPiece == Piece.p){
-                    return false;
-                }
-
-                // current rank should be 6
-                if (move.sourceSq / 8 != 6){
-                    return false;
-                }
-            }
-        } 
-    
         // bishop & possibly queen
         if (
             (

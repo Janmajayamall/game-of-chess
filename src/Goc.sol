@@ -373,42 +373,74 @@ contract Goc is Game, ERC1155, DSTest {
 
     event DF(bytes1 f, bool k, bytes d);
 
-    function test_parsePGNToMoveValue() public pure {
-        string memory pgnStr = ". e3 e2 ";
+    function parsePGNMove(bytes memory move, uint side, uint64[12] memory bitboards) public {
+        // pawn move
+        uint len = move.length;
+        if (move[move.length-1] == bytes1("+") || move[move.length-1] == bytes1("#")){
+            len -= 1;
+        }
+
+        bytes memory sourceSqStr = bytes.concat(move[len-2], move[len-1]);
+
+        if (len-2 != 0){
+
+            if (move[len-3] == bytes1("x")){
+                // remove attack signal
+                len -= 1;
+            }
+
+            if (len-2 != 0){
+                // check piece
+                if (len-2 == 1){
+                    // piece
+                }else {
+                    // 0th index - piece
+                    // 1st index rank or file    
+                }
+            }else {
+                // pawn move
+            }
+
+        }else{
+            // pawn move
+        }
+    }
+
+    function test_parsePGNToMoveValue() public {
+        string memory pgnStr = "1. e3 e2 ";
         bytes memory pgnBytes = bytes(pgnStr);
-        uint count = 0;
         uint index = 0;
-        require(pgnBytes[1] == bytes1(" "), "da");
         while (index < pgnBytes.length){
             while(pgnBytes[index] != bytes1(".")){
                 index += 1;
             }
 
-            // found .
-            index += 1; // skip space
+            index += 2; // skip space
 
-            // collect white move
+            // white move
             bytes memory whiteM;
             while (pgnBytes[index] != bytes1(" ")){
                 whiteM = bytes.concat(whiteM, pgnBytes[index]);
                 index += 1;
             }
+            emit log_string(string(whiteM));
 
             index += 1; // skip space
 
-            // collect white move 
+            // collect black move 
             bytes memory blackM;
             while (pgnBytes[index] != bytes1(" ")){
                 blackM = bytes.concat(blackM, pgnBytes[index]);
                 index += 1;
             }
+            emit log_string(string(blackM));
 
-            
+
         }
         // for (uint256 index = 0; index < pgnBytes.length; index++) {
             
         // }
-
+        assertTrue(false);
 
     }
 
