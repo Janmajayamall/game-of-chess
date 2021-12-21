@@ -11,18 +11,18 @@ contract Game is IChess {
     // game index
     uint16 public gameIndex;
 
-    function getBishopAttacks(uint64 square, uint blockboard) internal pure returns (uint64 attacks){
-        uint64 sr = square / 8;
-        uint64 sf = square % 8;
+    function getBishopAttacks(uint square, uint blockboard) internal pure returns (uint64 attacks){
+        uint sr = square / 8;
+        uint sf = square % 8;
 
-        uint64 r = sr + 1;
-        uint64 f = sf + 1;
+        uint r = sr + 1;
+        uint f = sf + 1;
 
         while (r <= 7 && f <= 7){
-            uint64 sq = r * 8 + f;
-            uint64 sqPos = uint64(1) << sq;
-            if (sqPos & blockboard != 0) break;
-            attacks |= sqPos;
+            uint sq = r * 8 + f;
+            uint64 sqPosB = uint64(1 << sq);
+            if (sqPosB & blockboard != 0) break;
+            attacks |= sqPosB;
             r += 1;
             f += 1;
         }
@@ -31,10 +31,10 @@ contract Game is IChess {
             r = sr + 1;
             f = sf - 1;
             while (r <= 7){
-                uint64 sq = r * 8 + f;
-                uint64 sqPos = uint64(1) << sq;
-                if (sqPos & blockboard != 0) break;
-                attacks |= sqPos;
+                uint sq = r * 8 + f;
+                uint64 sqPosB = uint64(1 << sq);
+                if (sqPosB & blockboard != 0) break;
+                attacks |= sqPosB;
                 r += 1;
                 if (f == 0) break;
                 f -= 1;
@@ -45,10 +45,10 @@ contract Game is IChess {
             r = sr - 1;
             f = sf + 1;
             while (f <= 7){
-                uint64 sq = r * 8 + f;
-                uint64 sqPos = uint64(1) << sq;
-                if (sqPos & blockboard != 0) break;
-                attacks |= sqPos;
+                uint sq = r * 8 + f;
+                uint64 sqPosB = uint64(1 << sq);
+                if (sqPosB & blockboard != 0) break;
+                attacks |= sqPosB;
                 f += 1;
                 if (r == 0) break;
                 r -= 1;
@@ -59,10 +59,10 @@ contract Game is IChess {
             r = sr - 1;
             f = sf - 1;
             while (true){
-                uint64 sq = r * 8 + f;
-                uint64 sqPos = uint64(1) << sq;
-                if (sqPos & blockboard != 0) break;
-                attacks |= sqPos;
+                uint sq = r * 8 + f;
+                uint64 sqPosB = uint64(1 << sq);
+                if (sqPosB & blockboard != 0) break;
+                attacks |= sqPosB;
                 if (r == 0 || f == 0) break;
                 r -= 1;
                 f -= 1;
@@ -70,37 +70,37 @@ contract Game is IChess {
         }
     }
 
-    function getRookAttacks(uint64 square, uint blockboard) internal pure returns (uint64 attacks) {
-        uint64 sr = square / 8;
-        uint64 sf = square % 8;
+    function getRookAttacks(uint square, uint blockboard) internal pure returns (uint64 attacks) {
+        uint sr = square / 8;
+        uint sf = square % 8;
 
-        uint64 r = sr + 1;
-        uint64 f;
+        uint r = sr + 1;
+        uint f;
 
         while (r <= 7){
-            uint64 sq = r * 8 + sf;
-            uint64 sqPos = uint64(1) << sq;
-            if (sqPos & blockboard != 0) break;
-            attacks |= sqPos;
+            uint sq = r * 8 + sf;
+            uint64 sqPosB = uint64(1 << sq);
+            if (sqPosB & blockboard != 0) break;
+            attacks |= sqPosB;
             r += 1;
         }
 
         f = sf + 1;
         while (f <= 7){
-            uint64 sq = sr * 8 + f;
-            uint64 sqPos = uint64(1) << sq;
-            if (sqPos & blockboard != 0) break;
-            attacks |= sqPos;
+            uint sq = sr * 8 + f;
+            uint64 sqPosB = uint64(1 << sq);
+            if (sqPosB & blockboard != 0) break;
+            attacks |= sqPosB;
             f += 1;
         }
 
         if (sr != 0){
             r = sr - 1;
             while (true){
-                uint64 sq = r * 8 + sf;
-                uint64 sqPos = uint64(1) << sq;
-                if (sqPos & blockboard != 0) break;
-                attacks |= sqPos;
+                uint sq = r * 8 + sf;
+                uint64 sqPosB = uint64(1 << sq);
+                if (sqPosB & blockboard != 0) break;
+                attacks |= sqPosB;
                 if (r == 0) break;
                 r -= 1;
             }
@@ -109,22 +109,22 @@ contract Game is IChess {
         if (sf != 0){
             f = sf - 1;
             while (true){
-                uint64 sq = sr * 8 + f;
-                uint64 sqPos = uint64(1) << sq;
-                if (sqPos & blockboard != 0) break;
-                attacks |= sqPos;
+                uint sq = sr * 8 + f;
+                uint64 sqPosB = uint64(1 << sq);
+                if (sqPosB & blockboard != 0) break;
+                attacks |= sqPosB;
                 if (f == 0) break;
                 f -= 1;
             }
         }
     }
 
-    function getPawnAttacks(uint64 square, uint side) internal pure returns (uint64 attacks){
+    function getPawnAttacks(uint square, uint side) internal pure returns (uint64 attacks){
         // not files, for move validations
         uint64 notAFile = 18374403900871474942;
         uint64 notHFile = 9187201950435737471;
 
-        uint64 sqBitboard = uint64(1) << square;
+        uint64 sqBitboard = uint64(1 << square);
 
         // white pawn
         if (side == 0){
@@ -138,12 +138,12 @@ contract Game is IChess {
         }
     }
 
-    function getKingAttacks(uint64 square) internal pure returns (uint64 attacks){
+    function getKingAttacks(uint square) internal pure returns (uint64 attacks){
         // not files, for move validations
         uint64 notAFile = 18374403900871474942;
         uint64 notHFile = 9187201950435737471;
 
-        uint64 sqBitboard = uint64(1) << square;
+        uint64 sqBitboard = uint64(1 << square);
 
         // upwards
         if (sqBitboard >> 8 != 0) attacks |= sqBitboard >> 8;
@@ -158,14 +158,14 @@ contract Game is IChess {
         if (sqBitboard << 1 & notAFile != 0) attacks |= sqBitboard << 1;
     }
 
-    function getKnightAttacks(uint64 square) internal pure returns (uint64 attacks){
+    function getKnightAttacks(uint square) internal pure returns (uint64 attacks){
         // not files, for move validations
         uint64 notAFile = 18374403900871474942;
         uint64 notHFile = 9187201950435737471;
         uint64 notHGFile = 4557430888798830399;
         uint64 notABFile = 18229723555195321596;
 
-        uint64 sqBitboard = uint64(1) << square;
+        uint64 sqBitboard = uint64(1 << square);
 
         // upwards
         if (sqBitboard >> 15 & notAFile != 0) attacks |= sqBitboard >> 15;
@@ -180,7 +180,7 @@ contract Game is IChess {
         if (sqBitboard << 10 & notABFile != 0) attacks |= sqBitboard << 10;
     }
 
-    function isSquareAttacked(uint64 square, Piece piece, uint64[12] memory bitboards, uint blockboard) internal pure returns (bool){
+    function isSquareAttacked(uint square, Piece piece, uint64[12] memory bitboards, uint blockboard) internal pure returns (bool){
         if (piece == Piece.uk){
             return false;
         }
