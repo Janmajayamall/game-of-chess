@@ -369,7 +369,7 @@ contract Goc is Game, ERC1155, DSTest {
 
     event DF(bytes1 f, bool k, bytes d);
 
-    function getPiece(bytes1 piece, uint side) public returns (Piece p) {
+    function parsePiece(bytes1 piece, uint side) public returns (Piece p) {
         if (piece == bytes1("N")){
             if (side == 0){
                 return Piece.N;
@@ -402,7 +402,7 @@ contract Goc is Game, ERC1155, DSTest {
         }
     }
 
-    function findPieceSq(Piece p, uint64[12] memory bitboards, uint64 targetSq, uint eR, uint eF) public returns (uint sq){
+    function findPieceSq(Piece p, uint64[12] memory bitboards, uint targetSq, uint eR, uint eF) public returns (uint sq){
         uint64 sourceBoard = bitboards[uint(p)];
         uint64 targetBoard = uint64(1 << targetSq);
         uint64 blockboard = getBlockerboard(bitboards);
@@ -446,40 +446,122 @@ contract Goc is Game, ERC1155, DSTest {
         }
     }
 
-    
+    function parseRankStr(bytes1 rank) public returns (uint r){
+        assembly {
+            r := rank
+        }
+        r -= 1;
+    }
+
+    function parseFileStr(bytes1 file) public returns (uint f){
+        bytes memory t = abi.encodePacked(file);
+        assembly {
+            f := t
+        }
+
+        return f - 141;
+    }
+
+    function coordsToSqD(bytes memory coords) internal returns (uint sq){
+        // find file
+        uint file;
+        if (coords[0] == bytes1("a")){
+            file = 0;
+        }
+        if (coords[0] == bytes1("b")){
+            file = 1;
+        }
+        if (coords[0] == bytes1("c")){
+            file = 2;
+        }
+        if (coords[0] == bytes1("d")){
+            file = 3;
+        }
+        if (coords[0] == bytes1("e")){
+            file = 4;
+        }
+        if (coords[0] == bytes1("f")){
+            file = 5;
+        }
+        if (coords[0] == bytes1("g")){
+            file = 6;
+        }
+        if (coords[0] == bytes1("h")){
+            file = 7;
+        }
+
+        uint rank;
+        if (coords[1] == bytes1("1")){
+            rank = 0;
+        }
+        if (coords[1] == bytes1("2")){
+            rank = 1;
+        }
+        if (coords[1] == bytes1("3")){
+            rank = 2;
+        }
+        if (coords[1] == bytes1("4")){
+            rank = 3;
+        }
+        if (coords[1] == bytes1("5")){
+            rank = 4;
+        }
+        if (coords[1] == bytes1("6")){
+            rank = 5;
+        }
+        if (coords[1] == bytes1("7")){
+            rank = 6;
+        }
+        if (coords[1] == bytes1("8")){
+            rank = 7;
+        }
+
+        sq = rank * 8 + file;
+    }
+
+    function coordsToSq(bytes memory coords) internal returns (uint sq){
+        sq = parseRankStr(coords[1]) * 8 + parseFileStr(coords[0]);
+    }
 
     function parsePGNMove(bytes memory move, uint side, uint64[12] memory bitboards) public {
         // pawn move
-        uint len = move.length;
-        if (move[move.length-1] == bytes1("+") || move[move.length-1] == bytes1("#")){
-            len -= 1;
+        uint lIndex = move.length - 1;
+        if (move[lIndex] == bytes1("+") || move[lIndex] == bytes1("#")){
+            lIndex -= 1;
         }
 
-        bytes memory targetSqStr = bytes.concat(move[len-2], move[len-1]);
-        // uint targetSq = 
+        uint targetSq = coordsToSq(bytes.concat(move[lIndex-1], move[lIndex]));
 
+        Piece sP;
+        uint sourceSq;
+        if (lIndex-1 != 0){
+            lIndex -= 1;
 
-        if (len-2 != 0){
-
-            if (move[len-3] == bytes1("x")){
-                // remove attack signal
-                len -= 1;
-            }
-
-            if (len-2 != 0){
-                // check piece
-                if (len-2 == 1){
-                    // piece
-                }else {
-                    // 0th index - piece
-
-                }
+            if (move[lIndex] == bytes1("x") && lIndex == 0){
+                // pawn
+                sP = side == 0 ? Piece.P : Piece.p;
+                sourceSq = findPieceSq(sP, bitboards, targetSq, 8, 8);
             }else {
-                // pawn move
-            }
+                if (move[lIndex] == bytes1("x")){
+                    lIndex -= 1;
+                }
 
+                // 0 or 1
+                if (lIndex == 0){
+                    // piece
+                    sP = parsePiece(move[lIndex], side);
+                    sourceSq = findPieceSq(sP, bitboards, targetSq, 8, 8);
+                }else {
+                    // piece + rank or file
+                    // TODO find rank and file
+                    sP = parsePiece(move[lIndex-1], side);
+                    sourceSq = findPieceSq(sP, bitboards, targetSq, 8, 8);
+                }
+            }
         }else{
             // pawn move
+            sP = side == 0 ? Piece.P : Piece.p;
+            sourceSq = findPieceSq(sP, bitboards, targetSq, 8, 8);
         }
     }
 
