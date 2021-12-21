@@ -1075,7 +1075,7 @@ contract Game is IChess {
         gamesState[_gameId] = gameState;
     }
 
-    function newGame() external {
+    function newGame() public {
         uint16 _gameIndex = gameIndex;
 
         // initialise game state
@@ -1087,6 +1087,7 @@ contract Game is IChess {
         _gameState.wkC = true;
         _gameState.wqC = true;
 
+        
         // initial bitbaords
         _gameState.bitboards = [
             // initial black pos
@@ -1111,6 +1112,8 @@ contract Game is IChess {
         // update index
         gameIndex = _gameIndex + 1;
     }
+
+
 }
 
 

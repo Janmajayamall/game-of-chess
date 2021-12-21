@@ -36,13 +36,6 @@ interface IChess {
         MoveFlag moveFlag;
     }
 
-
-    struct EncodedBitboards {
-        uint256 firstPieceB; // p, n, b, r 
-        uint256 secondPieceB; // q, k, Q, K
-        uint256 thirdPieceB; // P, N, B, R
-    }
-
     struct GameState {
         // bitboards
         uint64[12] bitboards;
@@ -67,15 +60,6 @@ interface IChess {
         bool bqC;
         bool wkC;
         bool wqC;
-    }
-
-    struct Market {
-        address creator;
-        uint24 moveValue;
-        uint16 moveCount;
-        uint8 side;
-        uint16 prob0x10000;
-        uint32 gameId;
     }
 
     struct OutcomeReserves {

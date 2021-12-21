@@ -9,7 +9,6 @@ import "./Game.sol";
 
 contract Goc is Game, ERC1155, DSTest {
 
-    mapping(uint256 => Market) markets;
     mapping(uint256 => address) marketCreators;
 
     uint256 cReserves;
@@ -22,9 +21,9 @@ contract Goc is Game, ERC1155, DSTest {
 
     address manager;
 
-    constructor(address _manager) {
-        manager = _manager;
-    }
+    // constructor(address _manager) {
+    //     manager = _manager;
+    // }
 
     function getOutcomeReservesTokenIds(uint256 _moveValue) public pure returns (uint oToken0Id, uint oToken1Id){
         oToken0Id = uint(keccak256(abi.encode(_moveValue, 0)));
@@ -236,11 +235,6 @@ contract Goc is Game, ERC1155, DSTest {
 
     
 
-
-
-
-
-
     // function test_decodeMove() public {
     //     uint w = 2737 & 63;
     //     // emit log_named_uint("w ", w); 
@@ -267,9 +261,9 @@ contract Goc is Game, ERC1155, DSTest {
     // mapping(uint => mapping (uint => mapping (uint => uint))) triple;
 
     // function setUp() public {
-    //     single[9] = 10;
-    //     double[9][9] = 10;
-    //     triple[9][9][9] = 10;
+    //     // single[9] = 10;
+    //     // double[9][9] = 10;
+    //     // triple[9][9][9] = 10;
     // }
 
     // function test_single() public {
@@ -283,4 +277,89 @@ contract Goc is Game, ERC1155, DSTest {
     // function test_triple() public {
     //     uint v = triple[9][9][9];
     // }
+
+    mapping(uint => uint)  boardMap;
+
+    function append(string memory a, string memory b) internal returns (string memory){
+        return string(abi.encodePacked(a, b));
+    }
+
+    function test_ada() public {
+        newGame();
+        GameState memory gameState = gamesState[1];
+
+        // make every index 64 for for overlapping indentification
+        for (uint256 index = 0; index < 64; index++) {
+            boardMap[index] = 12;
+        }
+       
+        for (uint256 pIndex = 0; pIndex < 12; pIndex++) {
+            uint64 board = gameState.bitboards[pIndex];
+            for (uint256 index = 0; index < 64; index++) {
+                if (board & (1 << index) != 0){
+                    require(boardMap[index] == 12, "Overlapping pieces");
+                    boardMap[index] = pIndex;
+                }
+            }
+        }
+        string memory p = "";
+        for (uint256 index = 0; index < 64; index++) {
+            uint piece = boardMap[index];
+
+            if (index%8 == 0){
+                p = append(p, "\n");
+            }
+
+            if (piece == 0){
+                p = append(p, unicode" ♙");
+            } 
+            if (piece == 1){
+                p = append(p, unicode" ♘");
+            }    
+            if (piece == 2){
+                p = append(p, unicode" ♗");
+            }
+            if (piece == 3){
+                p = append(p, unicode" ♖");
+            }
+            if (piece == 4){
+                p = append(p, unicode" ♕");
+            }
+            if (piece == 5){
+                p = append(p, unicode" ♔");
+            }
+            if (piece == 6){
+                p = append(p, unicode" ♟︎");
+            }
+            if (piece == 7){
+                p = append(p, unicode" ♞");
+            }
+            if (piece == 8){
+                p = append(p, unicode" ♝");
+            }
+            if (piece == 9){
+                p = append(p, unicode" ♜");
+            }
+            if (piece == 10){
+                p = append(p, unicode" ♛");
+            }
+            if (piece == 11){
+                p = append(p, unicode" ♚");
+            }
+            if (piece == 12){
+                p = append(p, unicode" .");
+            }
+        }
+
+        emit log_string(p);
+
+        // emit log_bytes(abi.encodePacked(uint(10)));
+
+        // emit log_string(
+        //     "dawdadwad \n "
+        //     "dwadaddd \n"
+        //     "this is yout  \n"
+        // );
+        assertTrue(false);   
+    }
 }
