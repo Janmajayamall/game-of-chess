@@ -369,6 +369,85 @@ contract Goc is Game, ERC1155, DSTest {
 
     event DF(bytes1 f, bool k, bytes d);
 
+    function getPiece(bytes1 piece, uint side) public returns (Piece p) {
+        if (piece == bytes1("N")){
+            if (side == 0){
+                return Piece.N;
+            }
+            return Piece.n;
+        }
+        if (piece == bytes1("R")){
+            if (side == 0){
+                return Piece.R;
+            }
+            return Piece.r;
+        }
+        if (piece == bytes1("B")){
+            if (side == 0){
+                return Piece.B;
+            }
+            return Piece.b;
+        }
+        if (piece == bytes1("Q")){
+            if (side == 0){
+                return Piece.Q;
+            }
+            return Piece.q;
+        }
+        if (piece == bytes1("K")){
+            if (side == 0){
+                return Piece.K;
+            }
+            return Piece.k;
+        }
+    }
+
+    function findPieceSq(Piece p, uint64[12] memory bitboards, uint64 targetSq, uint eR, uint eF) public returns (uint sq){
+        uint64 sourceBoard = bitboards[uint(p)];
+        uint64 targetBoard = uint64(1 << targetSq);
+        uint64 blockboard = getBlockerboard(bitboards);
+
+        // finding sqaures from where Piece p can reach target sq
+        uint64 attackBoard;
+        if (p == Piece.P || p == Piece.p){
+            attackBoard = getPawnAttacks(targetSq, p == Piece.P ? 0 : 1);
+        }
+        if (p == Piece.K || p == Piece.k){
+            attackBoard = getKingAttacks(targetSq);
+        }
+        if (p == Piece.N || p == Piece.n){
+            attackBoard = getKnightAttacks(targetSq);
+        }
+        if (p == Piece.R || p == Piece.r){
+            attackBoard = getRookAttacks(targetSq, blockboard);
+        }
+        if (p == Piece.B || p == Piece.b){
+            attackBoard = getBishopAttacks(targetSq, blockboard);
+        }
+        if (p == Piece.Q || p == Piece.q){
+            attackBoard = getRookAttacks(targetSq, blockboard);
+            attackBoard |= getBishopAttacks(targetSq, blockboard);
+        }
+
+        for (uint256 index = 0; index < 64; index++) {      
+            if (sourceBoard & (1 << index) != 0){
+                uint64 newBoard = uint64(1 << index);
+
+                if (attackBoard & newBoard == 1){
+                    if (eR != 8 && index / 8 == eR){
+                        sq = index;
+                    }else if (eF != 8 && index % 8 == eF){
+                        sq = index;
+                    }else {
+                        sq = index;
+                    }
+                }
+            }
+        }
+    }
+
+    
+
     function parsePGNMove(bytes memory move, uint side, uint64[12] memory bitboards) public {
         // pawn move
         uint len = move.length;
@@ -376,7 +455,9 @@ contract Goc is Game, ERC1155, DSTest {
             len -= 1;
         }
 
-        bytes memory sourceSqStr = bytes.concat(move[len-2], move[len-1]);
+        bytes memory targetSqStr = bytes.concat(move[len-2], move[len-1]);
+        // uint targetSq = 
+
 
         if (len-2 != 0){
 
@@ -391,7 +472,7 @@ contract Goc is Game, ERC1155, DSTest {
                     // piece
                 }else {
                     // 0th index - piece
-                    // 1st index rank or file    
+
                 }
             }else {
                 // pawn move
