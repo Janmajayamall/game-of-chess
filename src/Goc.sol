@@ -351,6 +351,7 @@ contract Goc is Game, ERC1155, DSTest {
         p = append(p, append("\n Source Sq : ", toString(moveMetadata.sourceSq)));
         p = append(p, append("\n Target Sq : ", toString(moveMetadata.targetSq)));
         p = append(p, append("\n Move By Sq : ", toString(moveMetadata.moveBySq)));
+        p = append(p, append("\n Source Piece : ", toString(uint(moveMetadata.sourcePiece))));
         if (uint(moveMetadata.moveFlag) == 0){
             p = append(p, "\n Flag: No Flag");
         }
@@ -375,8 +376,8 @@ contract Goc is Game, ERC1155, DSTest {
 
         // apply move
         uint _moveValue = encodeMove(
-            48,
-            40,
+            50,
+            42,
             0,
             false,
             false,
@@ -385,10 +386,36 @@ contract Goc is Game, ERC1155, DSTest {
             1,
             1
         );
+         uint _moveValue2 = encodeMove(
+            8,
+            24,
+            0,
+            true,
+            false,
+            false,
+            1,
+            1,
+            2
+        );
+
+        uint _moveValue3 = encodeMove(
+            60,
+            62,
+            0,
+            false,
+            false,
+            true,
+            0,
+            1,
+            3
+        );
 
         printMove(_moveValue);
-
+        printMove(_moveValue2);
+        printMove(_moveValue3);
         applyMove(_moveValue);
+        applyMove(_moveValue2);
+        applyMove(_moveValue3);
 
         GameState memory gameState = gamesState[1];
 
@@ -468,3 +495,9 @@ contract Goc is Game, ERC1155, DSTest {
         assertTrue(false);   
     }
 }
+
+/**
+Just thinking - 
+1. Should I add NFT per winning move? 
+    just to motivate people to elect new moves? 
+ */

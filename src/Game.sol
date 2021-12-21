@@ -571,7 +571,7 @@ contract Game is IChess {
         }
 
         // king
-        if (move.sourcePiece == Piece.K && move.moveFlag == MoveFlag.NoFlag){
+        if ((move.sourcePiece == Piece.K || move.sourcePiece == Piece.k) && move.moveFlag == MoveFlag.NoFlag){
             // moveBy can only be 8, 9, 7, 1
             if (move.moveBySq != 8 && move.moveBySq != 9 && move.moveBySq != 7 && move.moveBySq != 1){
                 return false;
@@ -615,7 +615,7 @@ contract Game is IChess {
         }
 
         // knight
-        if ((move.sourcePiece == Piece.K || move.sourcePiece == Piece.k) && move.moveFlag == MoveFlag.NoFlag) {
+        if ((move.sourcePiece == Piece.N || move.sourcePiece == Piece.n) && move.moveFlag == MoveFlag.NoFlag) {
             if (move.moveBySq != 17 && move.moveBySq != 15 && move.moveBySq != 6 && move.moveBySq != 10) {
                 return false;
             }
@@ -1014,7 +1014,7 @@ contract Game is IChess {
         // game not over
         else {
             // update source piece pos to target sq
-            gameState.bitboards[uint(move.sourcePiece)] = (gameState.bitboards[uint(move.sourcePiece)] | uint64(1) << move.targetSq) & ~uint64(1) << move.sourceSq;
+            gameState.bitboards[uint(move.sourcePiece)] = (gameState.bitboards[uint(move.sourcePiece)] | uint64(1) << move.targetSq) & ~(uint64(1) << move.sourceSq);
 
             // remove target piece from target sq
             if (move.targetPiece != Piece.uk ){
