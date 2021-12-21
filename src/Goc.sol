@@ -278,6 +278,29 @@ contract Goc is Game, ERC1155, DSTest {
     //     uint v = triple[9][9][9];
     // }
 
+    // taken from https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Strings.sol#L15-L35
+    function toString(uint256 value) internal pure returns (string memory) {
+        // Inspired by OraclizeAPI's implementation - MIT licence
+        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
+
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
+
     mapping(uint => uint)  boardMap;
 
     function encodeMove(
@@ -312,6 +335,41 @@ contract Goc is Game, ERC1155, DSTest {
         return string(abi.encodePacked(a, b));
     }
 
+    function printMove(uint _moveValue) internal {
+        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
+        GameState memory _gameState = gamesState[_gameId];
+        MoveMetadata memory moveMetadata = decodeMoveMetadataFromMoveValue(_moveValue, _gameState.bitboards);
+
+        string memory p = "";
+        p = append("\n Game ID: ", toString(_gameId));
+        if (moveMetadata.side == 0){
+            p = append(p, "\n Side: WHITE");
+        }else{
+            p = append(p, "\n Side: BLACK");
+        }
+        p = append(p, append("\n Move Count: ", toString(moveMetadata.moveCount)));
+        p = append(p, append("\n Source Sq : ", toString(moveMetadata.sourceSq)));
+        p = append(p, append("\n Target Sq : ", toString(moveMetadata.targetSq)));
+        p = append(p, append("\n Move By Sq : ", toString(moveMetadata.moveBySq)));
+        if (uint(moveMetadata.moveFlag) == 0){
+            p = append(p, "\n Flag: No Flag");
+        }
+        if (uint(moveMetadata.moveFlag) == 1){
+            p = append(p, "\n Flag: Double Push");
+        }
+        if (uint(moveMetadata.moveFlag) == 2){
+            p = append(p, "\n Flag: Enpassant");
+        }
+        if (uint(moveMetadata.moveFlag) == 3){
+            p = append(p, "\n Flag: Castle");
+        }
+        if (uint(moveMetadata.moveFlag) == 4){
+            p = append(p, "\n Flag: Pawn Promotion");
+        }
+        p = append(p, "\n");
+        emit log_string(p);
+    }
+
     function test_printBoard() public {
         newGame();
 
@@ -319,7 +377,7 @@ contract Goc is Game, ERC1155, DSTest {
         uint _moveValue = encodeMove(
             48,
             40,
-            6,
+            0,
             false,
             false,
             false,
@@ -327,6 +385,9 @@ contract Goc is Game, ERC1155, DSTest {
             1,
             1
         );
+
+        printMove(_moveValue);
+
         applyMove(_moveValue);
 
         GameState memory gameState = gamesState[1];
