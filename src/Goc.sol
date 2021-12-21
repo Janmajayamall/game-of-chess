@@ -301,7 +301,7 @@ contract Goc is Game, ERC1155, DSTest {
         return string(buffer);
     }
 
-    mapping(uint => uint)  boardMap;
+    mapping(uint => uint) boardMap;
 
     function encodeMove(
         uint sourceSq, 
@@ -371,7 +371,63 @@ contract Goc is Game, ERC1155, DSTest {
         emit log_string(p);
     }
 
-    function test_printBoard() public {
+    event DF(bytes1 f, bool k, bytes d);
+
+    function test_parsePGNToMoveValue() public pure {
+        string memory pgnStr = ". e3 e2 ";
+        bytes memory pgnBytes = bytes(pgnStr);
+        uint count = 0;
+        uint index = 0;
+        require(pgnBytes[1] == bytes1(" "), "da");
+        while (index < pgnBytes.length){
+            while(pgnBytes[index] != bytes1(".")){
+                index += 1;
+            }
+
+            // found .
+            index += 1; // skip space
+
+            // collect white move
+            bytes memory whiteM;
+            while (pgnBytes[index] != bytes1(" ")){
+                whiteM = bytes.concat(whiteM, pgnBytes[index]);
+                index += 1;
+            }
+
+            index += 1; // skip space
+
+            // collect white move 
+            bytes memory blackM;
+            while (pgnBytes[index] != bytes1(" ")){
+                blackM = bytes.concat(blackM, pgnBytes[index]);
+                index += 1;
+            }
+
+            
+        }
+        // for (uint256 index = 0; index < pgnBytes.length; index++) {
+            
+        // }
+
+
+    }
+
+    function tes_fdd() public {
+        string memory sd = "1dwaiudnaiosaonsmaokm";
+        bytes memory ass = bytes(sd);
+        for (uint256 index = 0; index < ass.length; index++) {
+            // emit log_uint(index);
+            emit DF(ass[index], ass[index]==bytes1("d"), abi.encodePacked(ass[index]));
+            // if (uint(ass[index])==uint(100)){
+            //     emit log_uint(12);
+            // }
+            // string memory char = string(bytes(ass[index]));
+            // emit log_string(char);
+        }
+        assertTrue(false);
+    }
+
+    function printBoard() public {
         newGame();
 
         // apply move
@@ -501,3 +557,8 @@ Just thinking -
 1. Should I add NFT per winning move? 
     just to motivate people to elect new moves? 
  */
+
+ /**
+ 1. Parse FEN and game & check game transition
+ 2. Work on NFT 
+  */
