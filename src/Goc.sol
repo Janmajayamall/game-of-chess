@@ -447,76 +447,63 @@ contract Goc is Game, ERC1155, DSTest {
     }
 
     function parseRankStr(bytes1 rank) public returns (uint r){
-        assembly {
-            r := rank
+        r = 8;
+        if (rank == bytes1("1")){
+            r = 0;
         }
-        r -= 1;
+        if (rank == bytes1("2")){
+            r = 1;
+        }
+        if (rank == bytes1("3")){
+            r = 2;
+        }
+        if (rank == bytes1("4")){
+            r = 3;
+        }
+        if (rank == bytes1("5")){
+            r = 4;
+        }
+        if (rank == bytes1("6")){
+            r = 5;
+        }
+        if (rank == bytes1("7")){
+            r = 6;
+        }
+        if (rank == bytes1("8")){
+            r = 7;
+        }
     }
 
     function parseFileStr(bytes1 file) public returns (uint f){
-        bytes memory t = abi.encodePacked(file);
-        assembly {
-            f := t
+        f = 8;
+        if (file == bytes1("a")){
+            f = 0;
         }
-
-        return f - 141;
+        if (file == bytes1("b")){
+            f = 1;
+        }
+        if (file == bytes1("c")){
+            f = 2;
+        }
+        if (file == bytes1("d")){
+            f = 3;
+        }
+        if (file == bytes1("e")){
+            f = 4;
+        }
+        if (file == bytes1("f")){
+            f = 5;
+        }
+        if (file == bytes1("g")){
+            f = 6;
+        }
+        if (file == bytes1("h")){
+            f = 7;
+        }
     }
 
     function coordsToSqD(bytes memory coords) internal returns (uint sq){
-        // find file
-        uint file;
-        if (coords[0] == bytes1("a")){
-            file = 0;
-        }
-        if (coords[0] == bytes1("b")){
-            file = 1;
-        }
-        if (coords[0] == bytes1("c")){
-            file = 2;
-        }
-        if (coords[0] == bytes1("d")){
-            file = 3;
-        }
-        if (coords[0] == bytes1("e")){
-            file = 4;
-        }
-        if (coords[0] == bytes1("f")){
-            file = 5;
-        }
-        if (coords[0] == bytes1("g")){
-            file = 6;
-        }
-        if (coords[0] == bytes1("h")){
-            file = 7;
-        }
-
-        uint rank;
-        if (coords[1] == bytes1("1")){
-            rank = 0;
-        }
-        if (coords[1] == bytes1("2")){
-            rank = 1;
-        }
-        if (coords[1] == bytes1("3")){
-            rank = 2;
-        }
-        if (coords[1] == bytes1("4")){
-            rank = 3;
-        }
-        if (coords[1] == bytes1("5")){
-            rank = 4;
-        }
-        if (coords[1] == bytes1("6")){
-            rank = 5;
-        }
-        if (coords[1] == bytes1("7")){
-            rank = 6;
-        }
-        if (coords[1] == bytes1("8")){
-            rank = 7;
-        }
-
-        sq = rank * 8 + file;
+        sq = parseRankStr(coords[1]) * 8 + parseFileStr(coords[0]);
     }
 
     function coordsToSq(bytes memory coords) internal returns (uint sq){
@@ -552,10 +539,10 @@ contract Goc is Game, ERC1155, DSTest {
                     sP = parsePiece(move[lIndex], side);
                     sourceSq = findPieceSq(sP, bitboards, targetSq, 8, 8);
                 }else {
-                    // piece + rank or file
-                    // TODO find rank and file
+                    uint f = parseFileStr(move[lIndex]);
+                    uint r = parseRankStr(move[lIndex]);
                     sP = parsePiece(move[lIndex-1], side);
-                    sourceSq = findPieceSq(sP, bitboards, targetSq, 8, 8);
+                    sourceSq = findPieceSq(sP, bitboards, targetSq, r, f);
                 }
             }
         }else{
