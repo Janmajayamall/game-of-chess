@@ -280,12 +280,55 @@ contract Goc is Game, ERC1155, DSTest {
 
     mapping(uint => uint)  boardMap;
 
-    function append(string memory a, string memory b) internal returns (string memory){
+    function encodeMove(
+        uint sourceSq, 
+        uint targetSq, 
+        uint promotedPiece,
+        bool doublePushFlag,
+        bool enpassantFlag,
+        bool castleFlag,
+        uint side,
+        uint gameId,
+        uint moveCount
+    ) public pure returns (uint moveValue) {
+        moveValue |= moveCount << 36;
+        moveValue |= gameId << 20;
+        moveValue |= side << 19;
+        if (castleFlag == true){
+            moveValue |= 1 << 18;
+        }
+        if (enpassantFlag == true){
+            moveValue |= 1 << 17;
+        }
+        if (doublePushFlag == true){
+            moveValue |= 1 << 16;
+        }
+        moveValue |= promotedPiece << 12;
+        moveValue |= targetSq << 6;
+        moveValue |= sourceSq;
+    }
+
+    function append(string memory a, string memory b) internal pure returns (string memory){
         return string(abi.encodePacked(a, b));
     }
 
-    function test_ada() public {
+    function test_printBoard() public {
         newGame();
+
+        // apply move
+        uint _moveValue = encodeMove(
+            48,
+            40,
+            6,
+            false,
+            false,
+            false,
+            0,
+            1,
+            1
+        );
+        applyMove(_moveValue);
+
         GameState memory gameState = gamesState[1];
 
         // make every index 64 for for overlapping indentification
@@ -297,7 +340,7 @@ contract Goc is Game, ERC1155, DSTest {
             uint64 board = gameState.bitboards[pIndex];
             for (uint256 index = 0; index < 64; index++) {
                 if (board & (1 << index) != 0){
-                    require(boardMap[index] == 12, "Overlapping pieces");
+                    require(boardMap[index] == 12, "Invalid board");
                     boardMap[index] = pIndex;
                 }
             }
@@ -350,6 +393,7 @@ contract Goc is Game, ERC1155, DSTest {
                 p = append(p, unicode" .");
             }
         }
+        p = append(p, "\n");
 
         emit log_string(p);
 

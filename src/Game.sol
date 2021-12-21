@@ -997,7 +997,7 @@ contract Game is IChess {
         uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
         GameState memory gameState = gamesState[_gameId];
         MoveMetadata memory move = decodeMoveMetadataFromMoveValue(_moveValue, gameState.bitboards);
-
+        
         // check whether move is valid
         require(isMoveValid(gameState, move), "Invalid move");
 
@@ -1334,6 +1334,7 @@ contract Game is IChess {
     0 0 0 0 0 0 0 0 
     0 0 0 0 0 0 0 0 
     0 0 0 0 1 0 0 0 
+
 
  */
     
