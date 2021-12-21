@@ -11,7 +11,6 @@ interface IChess {
     enum MoveFlag {
         NoFlag,
         DoublePush,
-        Enpassant,
         Castle,
         PawnPromotion
     }

@@ -242,17 +242,16 @@ contract Game is IChess {
     function decodeMoveMetadataFromMoveValue(uint256 moveValue, uint64[12] memory bitboards) internal pure returns (MoveMetadata memory moveMetadata) {
         moveMetadata.sourceSq = uint64(moveValue & 63);
         moveMetadata.targetSq = uint64((moveValue >> 6) & 63);
-        moveMetadata.side = (moveValue >> 19) & 1;
+        moveMetadata.side = (moveValue >> 18) & 1;
         moveMetadata.moveCount = uint16(moveValue >> 36);
 
         // flags
         uint pawnPromotion = (moveValue >> 12) & 15;
         uint doublePushFlag = (moveValue >> 16) & 1;
-        uint enpassantFlag = (moveValue >> 17) & 1;
-        uint castleFlag = (moveValue >> 18) & 1;
+        uint castleFlag = (moveValue >> 17) & 1;
 
         // set flags
-        uint sumFlags = doublePushFlag + enpassantFlag + castleFlag;
+        uint sumFlags = doublePushFlag + castleFlag;
         require(pawnPromotion >= 0 && pawnPromotion < 12 && sumFlags == 0 || sumFlags == 1 && pawnPromotion == 0 || pawnPromotion == 0 && sumFlags == 0, "Invalid flags");
         moveMetadata.moveFlag = MoveFlag.NoFlag;
         moveMetadata.promotedToPiece = Piece.uk;
@@ -261,8 +260,6 @@ contract Game is IChess {
             moveMetadata.promotedToPiece = Piece(pawnPromotion);
         }else if (doublePushFlag == 1){
             moveMetadata.moveFlag = MoveFlag.DoublePush;
-        }else if (enpassantFlag == 1){
-            moveMetadata.moveFlag = MoveFlag.Enpassant;
         }else if (castleFlag == 1){
            moveMetadata.moveFlag = MoveFlag.Castle;
         }
@@ -541,33 +538,6 @@ contract Game is IChess {
             } 
 
             return true;
-        }
-
-
-        if (move.moveFlag == MoveFlag.Enpassant){
-            if (gameState.enpassantSq == 0 || move.targetSq != gameState.enpassantSq || (move.sourcePiece != Piece.P && move.sourcePiece != Piece.p)){
-                return false;
-            }
-
-            if (move.moveBySq != 9 && move.moveBySq != 7){
-                return false;
-            }
-
-            // white pawn
-            if (move.sourcePiece == Piece.P){
-                // move upwards
-                if (move.moveLeftShift != false){
-                    return false;
-                }
-            }
-
-            // black pawn
-            if (move.sourcePiece == Piece.p){
-                // move downwards
-                if (move.moveLeftShift != true){
-                    return false;
-                }
-            }
         }
 
         // king
@@ -1200,9 +1170,8 @@ contract Game is IChess {
    0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 1111 1100 0000 target sq
    0000 0000 0000 0000 0000 0000 0000 0000 0000 1111 0000 0000 0000 promoted piece
    0000 0000 0000 0000 0000 0000 0000 0000 0001 0000 0000 0000 0000 double push flag
-   0000 0000 0000 0000 0000 0000 0000 0000 0010 0000 0000 0000 0000 enpassant flat
-   0000 0000 0000 0000 0000 0000 0000 0000 0100 0000 0000 0000 0000 castle flag
-   0000 0000 0000 0000 0000 0000 0000 0000 1000 0000 0000 0000 0000 side
+   0000 0000 0000 0000 0000 0000 0000 0000 0010 0000 0000 0000 0000 castle flag
+   0000 0000 0000 0000 0000 0000 0000 0000 0100 0000 0000 0000 0000 side
    0000 0000 0000 0000 1111 1111 1111 1111 0000 0000 0000 0000 0000 game id
    1111 1111 1111 1111 0000 0000 0000 0000 0000 0000 0000 0000 0000 move count
                              gameid    // 

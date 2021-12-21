@@ -308,7 +308,6 @@ contract Goc is Game, ERC1155, DSTest {
         uint targetSq, 
         uint promotedPiece,
         bool doublePushFlag,
-        bool enpassantFlag,
         bool castleFlag,
         uint side,
         uint gameId,
@@ -316,11 +315,8 @@ contract Goc is Game, ERC1155, DSTest {
     ) public pure returns (uint moveValue) {
         moveValue |= moveCount << 36;
         moveValue |= gameId << 20;
-        moveValue |= side << 19;
+        moveValue |= side << 18;
         if (castleFlag == true){
-            moveValue |= 1 << 18;
-        }
-        if (enpassantFlag == true){
             moveValue |= 1 << 17;
         }
         if (doublePushFlag == true){
@@ -469,7 +465,6 @@ contract Goc is Game, ERC1155, DSTest {
             0,
             false,
             false,
-            false,
             0,
             1,
             1
@@ -480,7 +475,6 @@ contract Goc is Game, ERC1155, DSTest {
             0,
             true,
             false,
-            false,
             1,
             1,
             2
@@ -490,7 +484,6 @@ contract Goc is Game, ERC1155, DSTest {
             60,
             62,
             0,
-            false,
             false,
             true,
             0,
