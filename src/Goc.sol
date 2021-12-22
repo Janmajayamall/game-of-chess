@@ -606,7 +606,7 @@ contract Goc is Game, ERC1155, DSTest {
     }
 
     function test_parsePGNToMoveValue() public {
-        string memory pgnStr = "1. d4 d5 2. Nf3 c5 3. c4 e6 4. e3 Nf6 5. Bd3 Nc6 6. O-O Bd6 ";
+        string memory pgnStr = "1. d4 d5 2. Nf3 c5 3. c4 e6 4. e3 Nf6 5. Bd3 Nc6 6. O-O Bd6 7. b3 O-O ";
 
         uint16 gameId = 1;
         newGame();
@@ -660,11 +660,15 @@ contract Goc is Game, ERC1155, DSTest {
                 gameId
             );
             printMove(moveValue);
+            // emit log_string("move applied");
             applyMove(moveValue);
             printBoard(1);
+            
+            
 
             index += 1;
         }
+
         assertTrue(false);
 
     }
@@ -840,3 +844,8 @@ Just thinking -
  1. Parse FEN and game & check game transition
  2. Work on NFT 
   */
+
+  /**
+    1. try parsing different boards
+    2. rearrange the code
+   */

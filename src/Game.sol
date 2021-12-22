@@ -11,7 +11,10 @@ contract Game is IChess {
     // game index
     uint16 public gameIndex;
 
-    function getBishopAttacks(Piece attackingPiece, uint square, uint blockboard, uint64[12] memory bitboards) internal pure returns (uint64 attacks){
+    event Log(string f);
+    event Log(string f, uint d);
+
+    function getBishopAttacks(Piece attackingPiece, uint square, uint blockboard, uint64[12] memory bitboards) internal returns (uint64 attacks){
         uint sr = square / 8;
         uint sf = square % 8;
 
@@ -34,7 +37,7 @@ contract Game is IChess {
             f += 1;
         }
 
-        if (f != 0){
+        if (sf != 0){
             r = sr + 1;
             f = sf - 1;
             while (r <= 7){
@@ -52,9 +55,12 @@ contract Game is IChess {
             }
         }
 
-        if (r != 0){
+        if (sr != 0){
+            // emit Log("In here 0", r);
             r = sr - 1;
+
             f = sf + 1;
+            
             while (f <= 7){
                 uint sq = r * 8 + f;
                 uint64 sqPosB = uint64(1 << sq);
@@ -70,7 +76,8 @@ contract Game is IChess {
             }
         }
 
-        if (r != 0 && f != 0){
+
+        if (sr != 0 && sf != 0){
             r = sr - 1;
             f = sf - 1;
             while (true){
@@ -221,7 +228,7 @@ contract Game is IChess {
         if (sqBitboard << 10 & notABFile != 0) attacks |= sqBitboard << 10;
     }
 
-    function isSquareAttacked(uint square, Piece piece, uint64[12] memory bitboards, uint blockboard) internal pure returns (bool){
+    function isSquareAttacked(uint square, Piece piece, uint64[12] memory bitboards, uint blockboard) internal returns (bool){
         if (piece == Piece.uk){
             return false;
         }
@@ -236,20 +243,28 @@ contract Game is IChess {
             return true;
         }
 
+        emit Log("Pawn attacks white");
+
         // check white pawn attacks on sq
         if (side == 1 && getPawnAttacks(square, side) & bitboards[uint(Piece.P)] != 0) {
             return true;
         }
+
+        emit Log("Pawn attacks black");
 
         // check kings attacks on sq
         if (getKingAttacks(square) & (side == 0 ? bitboards[uint(Piece.k)] : bitboards[uint(Piece.K)]) != 0) {
             return true;
         }
 
+        emit Log("King attacks");
+
         // check knight attacks on sq
         if (getKnightAttacks(square) & (side == 0 ? bitboards[uint(Piece.n)] : bitboards[uint(Piece.N)]) != 0){
             return true;
         }
+
+        emit Log("Knight attacks");
 
         // bishop attacks on sq
         uint64 bishopAttacks = getBishopAttacks(side == 0 ? Piece.b : Piece.B, square, blockboard, bitboards);
@@ -257,11 +272,15 @@ contract Game is IChess {
             return true;
         }
 
+        emit Log("Bishop attacks");
+
         // rook attacks on sq
         uint64 rookAttacks = getRookAttacks(side == 0 ? Piece.r : Piece.R, square, blockboard, bitboards);
         if (rookAttacks & (side == 0 ? bitboards[uint(Piece.r)] : bitboards[uint(Piece.R)]) != 0){
             return true;
         }
+
+        emit Log("Rook attacks");
 
         // queen attacks on sq
         uint64 queenAttacks = (
@@ -271,6 +290,8 @@ contract Game is IChess {
         if (queenAttacks & (side == 0 ? bitboards[uint(Piece.q)] : bitboards[uint(Piece.Q)]) != 0){
             return true;
         }
+
+        emit Log("Queen attacks");
 
         return false;
     }
@@ -348,7 +369,7 @@ contract Game is IChess {
         blockerboard |= bitboards[uint(Piece.K)];
     }
 
-    function isMoveValid(GameState memory gameState, MoveMetadata memory move) public pure returns (bool) {    
+    function isMoveValid(GameState memory gameState, MoveMetadata memory move) public returns (bool) {    
         if (gameState.state != 1){
             return false;
         }
@@ -484,10 +505,10 @@ contract Game is IChess {
                     }
 
                     // rook should be on 7
-                    if (1 << 7 & gameState.bitboards[uint(Piece.r)] == 0){
+                    if ((1 << 7) & gameState.bitboards[uint(Piece.r)] == 0){
                         return false;
                     }
-
+                    emit Log("Checking attacks");
                     // no attacks on king sq & thru sqaures
                     if (
                         isSquareAttacked(4, move.sourcePiece, gameState.bitboards, blockerboard) ||
@@ -954,15 +975,15 @@ contract Game is IChess {
 
         return true;
     }
-
+    
     function applyMove(uint256 _moveValue) internal {
         uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
         GameState memory gameState = gamesState[_gameId];
         MoveMetadata memory move = decodeMoveMetadataFromMoveValue(_moveValue, gameState.bitboards);
-        
+        emit Log("I am here");
         // check whether move is valid
         require(isMoveValid(gameState, move), "Invalid move");
-
+        
         // check game over
         if (move.targetPiece == Piece.K){
             // black won
@@ -977,7 +998,7 @@ contract Game is IChess {
         else {
             // update source piece pos to target sq
             gameState.bitboards[uint(move.sourcePiece)] = (gameState.bitboards[uint(move.sourcePiece)] | uint64(1) << move.targetSq) & ~(uint64(1) << move.sourceSq);
-
+           
             // remove target piece from target sq
             if (move.targetPiece != Piece.uk ){
                 gameState.bitboards[uint(move.targetPiece)] &= ~uint64(1) << move.targetSq;
@@ -1008,13 +1029,13 @@ contract Game is IChess {
                 gameState.bitboards[uint(move.sourcePiece)] &= ~uint64(1) << move.targetSq;
             }
             
-            // // update enpassant
-            // if (move.moveFlag == MoveFlag.DoublePush){
-            //     gameState.enpassantSq = move.moveLeftShift == true ? move.sourceSq + 8 : move.sourceSq - 8;
-            // }else {
-            //     gameState.enpassantSq = 0; // Note 0 is an illegal enpassant square
-            // }
-
+            // update enpassant
+            if ((move.sourcePiece == Piece.p || move.sourcePiece == Piece.P) && move.moveBySq == 16){
+                gameState.enpassantSq = move.moveLeftShift == true ? move.sourceSq + 8 : move.sourceSq - 8;
+            }else{
+                gameState.enpassantSq = 0; // Note 0 is an illegal enpassant square
+            }
+            
             // update castling rights
             if (move.sourcePiece == Piece.K){
                 gameState.wkC = false;
