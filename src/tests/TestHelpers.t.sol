@@ -69,7 +69,7 @@ contract TestHelpers is Game, DSTest {
 
     function parsePiece(bytes1 piece, uint side) public returns (Piece p) {
         p = Piece.uk;
-        // emit DF("parsePiece ", piece);
+
         if (piece == bytes1("N")){
             if (side == 0){
                 return Piece.N;
@@ -160,8 +160,6 @@ contract TestHelpers is Game, DSTest {
                 if (targetBoard >> 16 != 0) attackBoard |= targetBoard >> 16;
                 if (targetBoard >> 8 != 0) attackBoard |= targetBoard >> 8;
             }
-            emit log_named_uint("attack board ", attackBoard);
-            emit log_named_uint("source board ", sourceBoard);
         }
         if (p == Piece.K || p == Piece.k){
             attackBoard = getKingAttacks(targetSq);
@@ -175,8 +173,6 @@ contract TestHelpers is Game, DSTest {
         if (p == Piece.B || p == Piece.b){
             // flip the side since we are looking for sqaures that can reach target sq, not attack
             attackBoard = getBishopAttacks(side == 0 ? Piece.B : Piece.b, targetSq, blockboard, bitboards);
-            // emit log_named_uint("aBishopB ", bitboards[side == 0 ? uint(Piece.b) : uint(Piece.B)]);
-            // emit log_named_uint("attack ", attackBoard);
         }
         if (p == Piece.Q || p == Piece.q){
             attackBoard = getRookAttacks(side == 0 ? Piece.Q : Piece.q, targetSq, blockboard, bitboards);
@@ -186,8 +182,6 @@ contract TestHelpers is Game, DSTest {
             uint64 newBoard = uint64(1 << index);
             if (sourceBoard & newBoard != 0){
                 if (attackBoard & newBoard != 0){
-                    emit log_named_uint("inside index ", index);
-                    emit log_named_uint("inside index ", eF);
                     if (eR != 8 && index / 8 == eR){
                         sq = index;
                     }else if (eF != 8 && index % 8 == eF){
@@ -264,8 +258,6 @@ contract TestHelpers is Game, DSTest {
                         // it's a piece
                         sP = parsePiece(move[lIndex], side);
                         sourceSq = findSourceSqForTargetSq(sP, side, bitboards, targetSq, 8, 8);
-                        
-                        // emit Log(move[lIndex], sourceSq);
                     }else {
                         // index at lIndex defines rank/column
                         uint f = parseFileStr(move[lIndex]);
@@ -296,13 +288,19 @@ contract TestHelpers is Game, DSTest {
                 gameId,
                 moveCount
             );
+
+            // emit log_named_uint("Source sq: ", sourceSq);
+            // emit log_named_uint("Target sq: ", targetSq);
+            // emit log_named_uint("Game Id: ", gameId);
+            // emit log_named_uint("Move Count: ", moveCount);
+            // emit log_named_uint("Move Value: ", moveValue);
         }
     }
 
 
     ///////////////////////////////// PRINT HELPERS /////////////////////////////////
     
-    function printBoard(uint16 _gameId) public {
+    function formatBoardToString(uint16 _gameId) internal returns (string memory p) {
         uint64[12] memory bitboards = gamesState[_gameId].bitboards;
         uint[] memory boardMap = new uint[](64);
 
@@ -321,7 +319,6 @@ contract TestHelpers is Game, DSTest {
             }
         }
 
-        string memory p = "";
         for (uint256 index = 0; index < 64; index++) {
             uint piece = boardMap[index];
 
@@ -373,12 +370,11 @@ contract TestHelpers is Game, DSTest {
 
     }
 
-    function printMoveMetadata(uint _moveValue) internal {
+    function formatMoveMetadataToString(uint _moveValue) internal returns (string memory p) {
         uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
         GameState memory _gameState = gamesState[_gameId];
         MoveMetadata memory moveMetadata = decodeMoveMetadataFromMoveValue(_moveValue, _gameState.bitboards);
 
-        string memory p = "";
         p = p.append(string("\n Game ID: ").append(uint(_gameId).toString()));
         if (moveMetadata.side == 0){
             p = p.append("\n Side: WHITE");
@@ -399,6 +395,6 @@ contract TestHelpers is Game, DSTest {
             p = p.append("\n Flag: Pawn Promotion");
         }
         p = p.append("\n");
-        emit log_string(p);
+        // emit log_string(p);
     }
 }

@@ -258,7 +258,6 @@ contract Game is IChess {
             return true;
         }
 
-        emit Log("Knight attacks");
 
         // bishop attacks on sq
         uint64 bishopAttacks = getBishopAttacks(side == 0 ? Piece.b : Piece.B, square, blockboard, bitboards);
@@ -266,15 +265,11 @@ contract Game is IChess {
             return true;
         }
 
-        emit Log("Bishop attacks");
-
         // rook attacks on sq
         uint64 rookAttacks = getRookAttacks(side == 0 ? Piece.r : Piece.R, square, blockboard, bitboards);
         if (rookAttacks & (side == 0 ? bitboards[uint(Piece.r)] : bitboards[uint(Piece.R)]) != 0){
             return true;
         }
-
-        emit Log("Rook attacks");
 
         // queen attacks on sq
         uint64 queenAttacks = (
@@ -285,7 +280,6 @@ contract Game is IChess {
             return true;
         }
 
-        emit Log("Queen attacks");
 
         return false;
     }
@@ -502,7 +496,7 @@ contract Game is IChess {
                     if ((1 << 7) & gameState.bitboards[uint(Piece.r)] == 0){
                         return false;
                     }
-                    emit Log("Checking attacks");
+
                     // no attacks on king sq & thru sqaures
                     if (
                         isSquareAttacked(4, move.sourcePiece, gameState.bitboards, blockerboard) ||
