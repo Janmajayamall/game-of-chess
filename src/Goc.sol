@@ -307,23 +307,19 @@ contract Goc is Game, ERC1155, DSTest {
         uint sourceSq, 
         uint targetSq, 
         uint promotedPiece,
-        bool doublePushFlag,
         bool castleFlag,
         uint side,
         uint gameId,
         uint moveCount
     ) public pure returns (uint moveValue) {
-        moveValue |= moveCount << 36;
-        moveValue |= gameId << 20;
-        moveValue |= side << 18;
+        moveValue |= uint(moveCount << 36);
+        moveValue |= (gameId << 20);
+        moveValue |= (side << 17);
         if (castleFlag == true){
-            moveValue |= 1 << 17;
+            moveValue |= (1 << 16);
         }
-        if (doublePushFlag == true){
-            moveValue |= 1 << 16;
-        }
-        moveValue |= promotedPiece << 12;
-        moveValue |= targetSq << 6;
+        moveValue |= (promotedPiece << 12);
+        moveValue |= (targetSq << 6);
         moveValue |= sourceSq;
     }
 
@@ -410,7 +406,19 @@ contract Goc is Game, ERC1155, DSTest {
         // finding sqaures from where Piece p can reach target sq
         uint64 attackBoard;
         if (p == Piece.P || p == Piece.p){
-            attackBoard = getPawnAttacks(targetSq, p == Piece.P ? 0 : 1);
+            // note - getPawnAttacks returns the board consisting of squares
+            // that are reachable by pawn if pawn is on targetSq. We need to find
+            // the squares from which pawns can reach the targetSq, thus we inverse
+            // sides in function call.
+            attackBoard = getPawnAttacks(targetSq, p == Piece.P ? 1 : 0);
+            // pawn attacks does not include straight moves, thus adding them separately
+            if (p == Piece.P){
+                if (targetBoard << 16 != 0) attackBoard |= targetBoard << 16;
+                if (targetBoard << 8 != 0) attackBoard |= targetBoard << 8;
+            }else if (p == Piece.p){
+                if (targetBoard >> 16 != 0) attackBoard |= targetBoard >> 16;
+                if (targetBoard >> 8 != 0) attackBoard |= targetBoard >> 8;
+            }
         }
         if (p == Piece.K || p == Piece.k){
             attackBoard = getKingAttacks(targetSq);
@@ -428,12 +436,12 @@ contract Goc is Game, ERC1155, DSTest {
             attackBoard = getRookAttacks(targetSq, blockboard);
             attackBoard |= getBishopAttacks(targetSq, blockboard);
         }
-
         for (uint256 index = 0; index < 64; index++) {      
             if (sourceBoard & (1 << index) != 0){
                 uint64 newBoard = uint64(1 << index);
-
-                if (attackBoard & newBoard == 1){
+                
+                if (attackBoard & newBoard > 0){
+                    emit log_named_uint("index  insisde",index);
                     if (eR != 8 && index / 8 == eR){
                         sq = index;
                     }else if (eF != 8 && index % 8 == eF){
@@ -449,28 +457,28 @@ contract Goc is Game, ERC1155, DSTest {
     function parseRankStr(bytes1 rank) public returns (uint r){
         r = 8;
         if (rank == bytes1("1")){
-            r = 0;
+            r = 7;
         }
         if (rank == bytes1("2")){
-            r = 1;
-        }
-        if (rank == bytes1("3")){
-            r = 2;
-        }
-        if (rank == bytes1("4")){
-            r = 3;
-        }
-        if (rank == bytes1("5")){
-            r = 4;
-        }
-        if (rank == bytes1("6")){
-            r = 5;
-        }
-        if (rank == bytes1("7")){
             r = 6;
         }
+        if (rank == bytes1("3")){
+            r = 5;
+        }
+        if (rank == bytes1("4")){
+            r = 4;
+        }
+        if (rank == bytes1("5")){
+            r = 3;
+        }
+        if (rank == bytes1("6")){
+            r = 2;
+        }
+        if (rank == bytes1("7")){
+            r = 1;
+        }
         if (rank == bytes1("8")){
-            r = 7;
+            r = 0;
         }
     }
 
@@ -502,15 +510,19 @@ contract Goc is Game, ERC1155, DSTest {
         }
     }
 
-    function coordsToSqD(bytes memory coords) internal returns (uint sq){
-        sq = parseRankStr(coords[1]) * 8 + parseFileStr(coords[0]);
-    }
-
     function coordsToSq(bytes memory coords) internal returns (uint sq){
         sq = parseRankStr(coords[1]) * 8 + parseFileStr(coords[0]);
+        return sq;
     }
 
-    function parsePGNMove(bytes memory move, uint side, uint64[12] memory bitboards) public {
+    // TODO (1) handle castles and pawn promotino (= sign)
+    function parsePGNMove(
+        bytes memory move, 
+        uint side, 
+        uint64[12] memory bitboards, 
+        uint16 moveCount, 
+        uint16 gameId
+    ) public returns (uint moveValue){
         // pawn move
         uint lIndex = move.length - 1;
         if (move[lIndex] == bytes1("+") || move[lIndex] == bytes1("#")){
@@ -518,7 +530,7 @@ contract Goc is Game, ERC1155, DSTest {
         }
 
         uint targetSq = coordsToSq(bytes.concat(move[lIndex-1], move[lIndex]));
-
+        
         Piece sP;
         uint sourceSq;
         if (lIndex-1 != 0){
@@ -549,13 +561,31 @@ contract Goc is Game, ERC1155, DSTest {
             // pawn move
             sP = side == 0 ? Piece.P : Piece.p;
             sourceSq = findPieceSq(sP, bitboards, targetSq, 8, 8);
+
         }
+
+        moveValue = encodeMove(
+            sourceSq, 
+            targetSq, 
+            0,
+            false,   
+            side,
+            gameId,
+            moveCount
+        );
     }
 
     function test_parsePGNToMoveValue() public {
-        string memory pgnStr = "1. e3 e2 ";
+        string memory pgnStr = "1. d4 d5 2. Nf3 c5 3. c3 e6 4. e3 Nf6 ";
+
+        uint16 gameId = 1;
+        newGame();
+
+        // run
         bytes memory pgnBytes = bytes(pgnStr);
         uint index = 0;
+        uint16 moveCount = 0;
+        uint moveValue;
         while (index < pgnBytes.length){
             while(pgnBytes[index] != bytes1(".")){
                 index += 1;
@@ -570,6 +600,17 @@ contract Goc is Game, ERC1155, DSTest {
                 index += 1;
             }
             emit log_string(string(whiteM));
+            moveCount += 1;
+            moveValue = parsePGNMove(
+                whiteM,
+                0,
+                gamesState[gameId].bitboards,
+                moveCount,
+                gameId
+            );
+            printMove(moveValue);
+            applyMove(moveValue);
+            printBoard(1);
 
             index += 1; // skip space
 
@@ -580,75 +621,26 @@ contract Goc is Game, ERC1155, DSTest {
                 index += 1;
             }
             emit log_string(string(blackM));
+            moveCount += 1;
+            moveValue = parsePGNMove(
+                blackM,
+                1,
+                gamesState[gameId].bitboards,
+                moveCount,
+                gameId
+            );
+            printMove(moveValue);
+            applyMove(moveValue);
+            printBoard(1);
 
-
+            index += 1;
         }
-        // for (uint256 index = 0; index < pgnBytes.length; index++) {
-            
-        // }
         assertTrue(false);
 
     }
 
-    function tes_fdd() public {
-        string memory sd = "1dwaiudnaiosaonsmaokm";
-        bytes memory ass = bytes(sd);
-        for (uint256 index = 0; index < ass.length; index++) {
-            // emit log_uint(index);
-            emit DF(ass[index], ass[index]==bytes1("d"), abi.encodePacked(ass[index]));
-            // if (uint(ass[index])==uint(100)){
-            //     emit log_uint(12);
-            // }
-            // string memory char = string(bytes(ass[index]));
-            // emit log_string(char);
-        }
-        assertTrue(false);
-    }
-
-    function printBoard() public {
-        newGame();
-
-        // apply move
-        uint _moveValue = encodeMove(
-            50,
-            42,
-            0,
-            false,
-            false,
-            0,
-            1,
-            1
-        );
-         uint _moveValue2 = encodeMove(
-            8,
-            24,
-            0,
-            true,
-            false,
-            1,
-            1,
-            2
-        );
-
-        uint _moveValue3 = encodeMove(
-            60,
-            62,
-            0,
-            false,
-            true,
-            0,
-            1,
-            3
-        );
-
-        printMove(_moveValue);
-        printMove(_moveValue2);
-        printMove(_moveValue3);
-        applyMove(_moveValue);
-        applyMove(_moveValue2);
-        applyMove(_moveValue3);
-
-        GameState memory gameState = gamesState[1];
+    function printBoard(uint16 gameId) public {
+        GameState memory gameState = gamesState[gameId];
 
         // make every index 64 for for overlapping indentification
         for (uint256 index = 0; index < 64; index++) {
@@ -715,6 +707,87 @@ contract Goc is Game, ERC1155, DSTest {
         p = append(p, "\n");
 
         emit log_string(p);
+    }
+
+    function tes_fdd() public {
+        string memory sd = "1dwaiudnaiosaonsmaokm";
+        bytes memory ass = bytes(sd);
+        for (uint256 index = 0; index < ass.length; index++) {
+            // emit log_uint(index);
+            emit DF(ass[index], ass[index]==bytes1("d"), abi.encodePacked(ass[index]));
+            // if (uint(ass[index])==uint(100)){
+            //     emit log_uint(12);
+            // }
+            // string memory char = string(bytes(ass[index]));
+            // emit log_string(char);
+        }
+        assertTrue(false);
+    }
+
+    function tst_printBoard() public {
+        newGame();
+
+        // apply move
+        uint moveValue = encodeMove(
+            50,
+            42,
+            0,
+            false,
+            0,
+            1,
+            1
+        );
+
+        uint sourceSq = uint64(moveValue & 63);
+        uint64 b = uint64(1 << sourceSq);
+        uint16 gameId = uint16(moveValue >> 20);
+        emit log_named_uint("moveValue ", moveValue);
+        emit log_named_uint("gameId ", gameId);
+        emit log_named_uint("source sq ", sourceSq);
+        emit log_named_uint("b ", b);
+        emit log_named_uint("gameId ", decodeGameIdFromMoveValue(moveValue));
+        emit log_named_uint("moveCount ", decodeMoveCountFromMoveValue(moveValue));
+
+        uint64[12] memory bitboards = gamesState[1].bitboards;
+        for (uint64 index = 0; index < bitboards.length; index++) {
+            uint64 board = bitboards[index];
+            emit log_named_uint("board ", board);
+            if ((b & board)>0){
+                emit log_named_uint("piece ", index);
+            }
+        }
+
+        decodeMoveMetadataFromMoveValue(moveValue, bitboards);
+        printMove(moveValue);
+
+        //  uint _moveValue2 = encodeMove(
+        //     8,
+        //     24,
+        //     0,
+        //     false,
+        //     1,
+        //     1,
+        //     2
+        // );
+
+        // uint _moveValue3 = encodeMove(
+        //     60,
+        //     62,
+        //     0,
+        //     false,
+        //     0,
+        //     1,
+        //     3
+        // );
+
+        // printMove(_moveValue);
+        // printMove(_moveValue2);
+        // printMove(_moveValue3);
+        // applyMove(_moveValue);
+        // applyMove(_moveValue2);
+        // applyMove(_moveValue3);
+
+       
 
         // emit log_bytes(abi.encodePacked(uint(10)));
 

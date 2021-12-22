@@ -134,7 +134,7 @@ contract Game is IChess {
         // black pawn
         else {
             if (sqBitboard << 9 & notAFile != 0) attacks |= sqBitboard << 9;
-            if (sqBitboard << 7 & notHFile != 0) attacks |= sqBitboard >> 7;
+            if (sqBitboard << 7 & notHFile != 0) attacks |= sqBitboard << 7;
         }
     }
 
@@ -232,7 +232,7 @@ contract Game is IChess {
     }
 
     function decodeGameIdFromMoveValue(uint256 moveValue) internal pure returns (uint16 gameId){
-        gameId = uint16(moveValue >> 20);
+        gameId = uint16((moveValue >> 20) & 65535);
     }
 
     function decodeMoveCountFromMoveValue(uint256 moveValue) internal pure returns (uint16 gameId){
@@ -242,25 +242,22 @@ contract Game is IChess {
     function decodeMoveMetadataFromMoveValue(uint256 moveValue, uint64[12] memory bitboards) internal pure returns (MoveMetadata memory moveMetadata) {
         moveMetadata.sourceSq = uint64(moveValue & 63);
         moveMetadata.targetSq = uint64((moveValue >> 6) & 63);
-        moveMetadata.side = (moveValue >> 18) & 1;
+        moveMetadata.side = (moveValue >> 17) & 1;
         moveMetadata.moveCount = uint16(moveValue >> 36);
 
         // flags
         uint pawnPromotion = (moveValue >> 12) & 15;
-        uint doublePushFlag = (moveValue >> 16) & 1;
-        uint castleFlag = (moveValue >> 17) & 1;
+        uint castleFlag = (moveValue >> 16) & 1;
 
         // set flags
-        uint sumFlags = doublePushFlag + castleFlag;
-        require(pawnPromotion >= 0 && pawnPromotion < 12 && sumFlags == 0 || sumFlags == 1 && pawnPromotion == 0 || pawnPromotion == 0 && sumFlags == 0, "Invalid flags");
+        require(pawnPromotion > 0 && pawnPromotion < 12 && castleFlag == 0 || pawnPromotion == 0, "Invalid flags");
         moveMetadata.moveFlag = MoveFlag.NoFlag;
         moveMetadata.promotedToPiece = Piece.uk;
         if (pawnPromotion != 0){
             moveMetadata.moveFlag = MoveFlag.PawnPromotion;
             moveMetadata.promotedToPiece = Piece(pawnPromotion);
-        }else if (doublePushFlag == 1){
-            moveMetadata.moveFlag = MoveFlag.DoublePush;
-        }else if (castleFlag == 1){
+        }
+        if (castleFlag == 1){
            moveMetadata.moveFlag = MoveFlag.Castle;
         }
 
@@ -498,48 +495,6 @@ contract Game is IChess {
             }
         }
 
-        if (move.moveFlag == MoveFlag.DoublePush){
-            // should be pawn
-            if (move.sourcePiece != Piece.P && move.sourcePiece != Piece.p){
-                return false;
-            }
-
-            // mmoveBy should be 16
-            if (move.moveBySq != 16){
-                return false;
-            }
-
-            // white pawn
-            if (move.sourcePiece == Piece.P){
-                // move upwards
-                if (move.moveLeftShift != false){
-                    return false;
-                }
-
-                // pawn shouldn't have moved before; 
-                // 71776119061217280 is initial pos of white pawns on board
-                if (move.sourcePieceBitBoard & 71776119061217280 == 0){
-                    return false;
-                }
-            }
-
-            // black pawn
-            if (move.sourcePiece == Piece.p){
-                // move downwards
-                if (move.moveLeftShift != true){
-                    return false;
-                }
-
-                // pawn shouldn't have moved before; 
-                // 65280 is initial pos of black pawns on board
-                if (move.sourcePieceBitBoard & 65280 == 0){
-                    return false;
-                }
-            } 
-
-            return true;
-        }
-
         // king
         if ((move.sourcePiece == Piece.K || move.sourcePiece == Piece.k) && move.moveFlag == MoveFlag.NoFlag){
             // moveBy can only be 8, 9, 7, 1
@@ -640,10 +595,6 @@ contract Game is IChess {
         
         // white & black pawns
         if ((move.sourcePiece == Piece.P || move.sourcePiece == Piece.p) && (move.moveFlag == MoveFlag.NoFlag || move.moveFlag == MoveFlag.PawnPromotion)){
-            if (move.moveBySq != 8 && move.moveBySq != 9 && move.moveBySq != 7){
-                return false;
-            }
-
             // white pawns can only move upwards & black pawns can only move downwards
             if (
                 (move.sourcePiece != Piece.P || move.moveLeftShift != false) &&
@@ -697,7 +648,22 @@ contract Game is IChess {
                 if (move.sourcePieceBitBoard << move.moveBySq == 0){
                     return false;
                 }
-            }else {
+            }else if (move.moveBySq == 16) {
+                // target sq should be empty 
+                if (move.targetPiece != Piece.uk){
+                    return false;
+                }
+
+                // pawn shouldn't have moved before
+                // 71776119061217280 is initial pos of white pawns on board
+                // 65280 is initial pos of black pawns on board
+                if ((move.sourcePiece != Piece.P || move.sourcePieceBitBoard & 71776119061217280 == 0) && 
+                    (move.sourcePiece != Piece.p || move.sourcePieceBitBoard & 65280 == 0) 
+                ){
+                    return false;
+                }
+            }
+            else {
                 return false;
             }
 
@@ -1169,9 +1135,8 @@ contract Game is IChess {
    0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0011 1111 source sq
    0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 1111 1100 0000 target sq
    0000 0000 0000 0000 0000 0000 0000 0000 0000 1111 0000 0000 0000 promoted piece
-   0000 0000 0000 0000 0000 0000 0000 0000 0001 0000 0000 0000 0000 double push flag
-   0000 0000 0000 0000 0000 0000 0000 0000 0010 0000 0000 0000 0000 castle flag
-   0000 0000 0000 0000 0000 0000 0000 0000 0100 0000 0000 0000 0000 side
+   0000 0000 0000 0000 0000 0000 0000 0000 0001 0000 0000 0000 0000 castle flag
+   0000 0000 0000 0000 0000 0000 0000 0000 0010 0000 0000 0000 0000 side
    0000 0000 0000 0000 1111 1111 1111 1111 0000 0000 0000 0000 0000 game id
    1111 1111 1111 1111 0000 0000 0000 0000 0000 0000 0000 0000 0000 move count
                              gameid    // 
