@@ -56,7 +56,6 @@ contract Game is IChess {
         }
 
         if (sr != 0){
-            // emit Log("In here 0", r);
             r = sr - 1;
 
             f = sf + 1;
@@ -243,21 +242,16 @@ contract Game is IChess {
             return true;
         }
 
-        emit Log("Pawn attacks white");
-
         // check white pawn attacks on sq
         if (side == 1 && getPawnAttacks(square, side) & bitboards[uint(Piece.P)] != 0) {
             return true;
         }
-
-        emit Log("Pawn attacks black");
 
         // check kings attacks on sq
         if (getKingAttacks(square) & (side == 0 ? bitboards[uint(Piece.k)] : bitboards[uint(Piece.K)]) != 0) {
             return true;
         }
 
-        emit Log("King attacks");
 
         // check knight attacks on sq
         if (getKnightAttacks(square) & (side == 0 ? bitboards[uint(Piece.n)] : bitboards[uint(Piece.N)]) != 0){
@@ -980,7 +974,7 @@ contract Game is IChess {
         uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
         GameState memory gameState = gamesState[_gameId];
         MoveMetadata memory move = decodeMoveMetadataFromMoveValue(_moveValue, gameState.bitboards);
-        emit Log("I am here");
+
         // check whether move is valid
         require(isMoveValid(gameState, move), "Invalid move");
         
@@ -1001,7 +995,7 @@ contract Game is IChess {
            
             // remove target piece from target sq
             if (move.targetPiece != Piece.uk ){
-                gameState.bitboards[uint(move.targetPiece)] &= ~uint64(1) << move.targetSq;
+                gameState.bitboards[uint(move.targetPiece)] &= ~uint64(1 << move.targetSq);
             }
 
             // update rook position, since position update of king has been taken care of above

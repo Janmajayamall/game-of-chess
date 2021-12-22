@@ -359,7 +359,9 @@ contract Goc is Game, ERC1155, DSTest {
 
     event DF(bytes1 f, bool k, bytes d);
     event DF(string key, bytes1 f);
+
     function parsePiece(bytes1 piece, uint side) public returns (Piece p) {
+        p = Piece.uk;
         // emit DF("parsePiece ", piece);
         if (piece == bytes1("N")){
             if (side == 0){
@@ -401,15 +403,20 @@ contract Goc is Game, ERC1155, DSTest {
         // finding sqaures from where Piece p can reach target sq
         uint64 attackBoard;
         if (p == Piece.P || p == Piece.p){
-            // note - getPawnAttacks returns the board consisting of squares
-            // that are reachable by pawn if pawn is on targetSq. We need to find
-            // the squares from which pawns can reach the targetSq, thus we inverse
-            // sides in function call.
-            // Returned squares are only valid if target sqaure consists of a piece
+            // note - getPawnAttack returns squares that can attack the target square while
+            // taking the side into consideration. For example, when looking for attack squares
+            // when targetSq is assumbed to have a white piece the search would always contain squares
+            // that are above the targetSq since black pawns can only attack downwards. 
+            // In our case, we need the squares from which pawn of the side can reach the targetSq, 
+            // thus we simply flip the side in search. So if we are searching for sqaures from which white
+            // pawns can reach the targetSq, we instead search for sqaures from which white pawns can attack
+            // the targetSq.
+            // blockboard & targetBoard != 0 is required to check whether the targetSq consists of some piece, 
+            // since pawns can move diagonally only when targetSq consists something. 
             if (blockboard & targetBoard != 0){
                 attackBoard = getPawnAttacks(targetSq, p == Piece.P ? 1 : 0);
             }
-            // pawn attacks does not include straight moves, thus adding them separately
+            // pawn attacks do not include straight moves, thus adding them separately
             if (p == Piece.P){
                 if (targetBoard << 16 != 0) attackBoard |= targetBoard << 16;
                 if (targetBoard << 8 != 0) attackBoard |= targetBoard << 8;
@@ -417,6 +424,8 @@ contract Goc is Game, ERC1155, DSTest {
                 if (targetBoard >> 16 != 0) attackBoard |= targetBoard >> 16;
                 if (targetBoard >> 8 != 0) attackBoard |= targetBoard >> 8;
             }
+            emit log_named_uint("attack board ", attackBoard);
+            emit log_named_uint("source board ", sourceBoard);
         }
         if (p == Piece.K || p == Piece.k){
             attackBoard = getKingAttacks(targetSq);
@@ -434,18 +443,20 @@ contract Goc is Game, ERC1155, DSTest {
             // emit log_named_uint("attack ", attackBoard);
         }
         if (p == Piece.Q || p == Piece.q){
-            attackBoard = getRookAttacks(side == 0 ? Piece.R : Piece.r, targetSq, blockboard, bitboards);
-            attackBoard |= getBishopAttacks(side == 0 ? Piece.B : Piece.b, targetSq, blockboard, bitboards);
+            attackBoard = getRookAttacks(side == 0 ? Piece.Q : Piece.q, targetSq, blockboard, bitboards);
+            attackBoard |= getBishopAttacks(side == 0 ? Piece.Q : Piece.q, targetSq, blockboard, bitboards);
         }
         for (uint256 index = 0; index < 64; index++) {      
             uint64 newBoard = uint64(1 << index);
             if (sourceBoard & newBoard != 0){
-                if (attackBoard & newBoard > 0){
+                if (attackBoard & newBoard != 0){
+                    emit log_named_uint("inside index ", index);
+                    emit log_named_uint("inside index ", eF);
                     if (eR != 8 && index / 8 == eR){
                         sq = index;
                     }else if (eF != 8 && index % 8 == eF){
                         sq = index;
-                    }else {
+                    }else if (eR == 8 && eF == 8){
                         sq = index;
                     }
                 }
@@ -552,7 +563,6 @@ contract Goc is Game, ERC1155, DSTest {
             );
         }
         else {
-            // pawn move
             uint lIndex = move.length - 1;
             if (move[lIndex] == bytes1("+") || move[lIndex] == bytes1("#")){
                 lIndex -= 1;
@@ -563,7 +573,7 @@ contract Goc is Game, ERC1155, DSTest {
             Piece sP;
             uint sourceSq;
             if (lIndex-1 != 0){
-                lIndex -= 1;
+                lIndex -= 2;
 
                 if (move[lIndex] == bytes1("x") && lIndex == 0){
                     // pawn
@@ -574,16 +584,32 @@ contract Goc is Game, ERC1155, DSTest {
                         lIndex -= 1;
                     }
 
-                    // 0 or 1
-                    if (lIndex == 0){
-                        // piece
+                    // lIndex is either 0 or 1
+                    // note - If lIndex == 0, it means that the char at index is either a piece,
+                    // or rank/column defining position of pawn piece (for situations when 2 pawns can perform
+                    // the same move).
+                    // If lIndex == 1, then index pos 1 defines rank/column of piece at index pos 0
+                    if (lIndex == 0 && parsePiece(move[lIndex], side) != Piece.uk){
+                        // it's a piece
                         sP = parsePiece(move[lIndex], side);
                         sourceSq = findPieceSq(sP, side, bitboards, targetSq, 8, 8);
+                        
+                        // emit Log(move[lIndex], sourceSq);
                     }else {
+                        // index at lIndex defines rank/column
                         uint f = parseFileStr(move[lIndex]);
                         uint r = parseRankStr(move[lIndex]);
-                        sP = parsePiece(move[lIndex-1], side);
+
+                        if (lIndex == 0){
+                            // pawn piece
+                            sP = side == 0 ? Piece.P : Piece.p;
+                        }else {
+                            sP = parsePiece(move[lIndex-1], side);
+                        }
                         sourceSq = findPieceSq(sP, side, bitboards, targetSq, r, f);
+                        emit Log(move[lIndex], sourceSq);
+                        emit Log(move[lIndex], f);
+                        emit Log(move[lIndex], r);
                     }
                 }
             }else{
@@ -604,9 +630,9 @@ contract Goc is Game, ERC1155, DSTest {
             );
         }
     }
-
+    event Log(bytes1 d, uint s);
     function test_parsePGNToMoveValue() public {
-        string memory pgnStr = "1. d4 d5 2. Nf3 c5 3. c4 e6 4. e3 Nf6 5. Bd3 Nc6 6. O-O Bd6 7. b3 O-O ";
+        string memory pgnStr = "1. d4 d5 2. Nf3 c5 3. c4 e6 4. e3 Nf6 5. Bd3 Nc6 6. O-O Bd6 7. b3 O-O 8. Bb2 b6 9. Nbd2 Bb7 10. Rc1 Qe7 11. cxd5 exd5 12. Nh4 g6 13. Nhf3 Rad8 14. dxc5 bxc5 15. Bb5 Ne4 16. Bxc6 Bxc6 17. Qc2 Nxd2 18. Nxd2 d4 19. exd4 Bxh2+ 20. Kxh2 Qh4+ 21. Kg1 Bxg2 22. f3 Rfe8 23. Ne4 Qh1+ 24. Kf2 Bxf1 25. d5 f5 26. Qc3 Qg2+ 27. Ke3 Rxe4+ 28. fxe4 f4+ 29. Kxf4 Rf8+ 30. Ke5 Qh2+ 31. Ke6 Re8+ 32. Kd7 Bb5 ";
 
         uint16 gameId = 1;
         newGame();
@@ -639,8 +665,8 @@ contract Goc is Game, ERC1155, DSTest {
                 gameId
             );
             printMove(moveValue);
-            applyMove(moveValue);
-            printBoard(1);
+            // applyMove(moveValue);
+            // printBoard(1);
 
             index += 1; // skip space
 
@@ -661,15 +687,15 @@ contract Goc is Game, ERC1155, DSTest {
             );
             printMove(moveValue);
             // emit log_string("move applied");
-            applyMove(moveValue);
-            printBoard(1);
+            // applyMove(moveValue);
+            // printBoard(1);
             
             
 
             index += 1;
         }
 
-        assertTrue(false);
+        assertTrue(true);
 
     }
 
