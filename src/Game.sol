@@ -11,18 +11,25 @@ contract Game is IChess {
     // game index
     uint16 public gameIndex;
 
-    function getBishopAttacks(uint square, uint blockboard) internal pure returns (uint64 attacks){
+    function getBishopAttacks(Piece attackingPiece, uint square, uint blockboard, uint64[12] memory bitboards) internal pure returns (uint64 attacks){
         uint sr = square / 8;
         uint sf = square % 8;
 
         uint r = sr + 1;
         uint f = sf + 1;
 
+        // potential attacking sqaures
+        uint64 aBishopB = bitboards[uint(attackingPiece)];
+
         while (r <= 7 && f <= 7){
             uint sq = r * 8 + f;
             uint64 sqPosB = uint64(1 << sq);
-            if (sqPosB & blockboard != 0) break;
-            attacks |= sqPosB;
+
+            if (sqPosB & aBishopB != 0){
+                attacks |= sqPosB;
+                break;
+            }else if (sqPosB & blockboard != 0) break;
+
             r += 1;
             f += 1;
         }
@@ -33,8 +40,12 @@ contract Game is IChess {
             while (r <= 7){
                 uint sq = r * 8 + f;
                 uint64 sqPosB = uint64(1 << sq);
-                if (sqPosB & blockboard != 0) break;
-                attacks |= sqPosB;
+                
+                if (sqPosB & aBishopB != 0){
+                    attacks |= sqPosB;
+                    break;
+                }else if (sqPosB & blockboard != 0) break;
+
                 r += 1;
                 if (f == 0) break;
                 f -= 1;
@@ -47,8 +58,12 @@ contract Game is IChess {
             while (f <= 7){
                 uint sq = r * 8 + f;
                 uint64 sqPosB = uint64(1 << sq);
-                if (sqPosB & blockboard != 0) break;
-                attacks |= sqPosB;
+                
+                if (sqPosB & aBishopB != 0){
+                    attacks |= sqPosB;
+                    break;
+                }else if (sqPosB & blockboard != 0) break;
+
                 f += 1;
                 if (r == 0) break;
                 r -= 1;
@@ -61,8 +76,12 @@ contract Game is IChess {
             while (true){
                 uint sq = r * 8 + f;
                 uint64 sqPosB = uint64(1 << sq);
-                if (sqPosB & blockboard != 0) break;
-                attacks |= sqPosB;
+                
+                if (sqPosB & aBishopB != 0){
+                    attacks |= sqPosB;
+                    break;
+                }else if (sqPosB & blockboard != 0) break;
+
                 if (r == 0 || f == 0) break;
                 r -= 1;
                 f -= 1;
@@ -70,18 +89,25 @@ contract Game is IChess {
         }
     }
 
-    function getRookAttacks(uint square, uint blockboard) internal pure returns (uint64 attacks) {
+    function getRookAttacks(Piece attackingPiece, uint square, uint blockboard, uint64[12] memory bitboards) internal pure returns (uint64 attacks) {
         uint sr = square / 8;
         uint sf = square % 8;
 
         uint r = sr + 1;
         uint f;
 
+        // potential attacking sqaures
+        uint64 aRookB = bitboards[uint(attackingPiece)];
+
         while (r <= 7){
             uint sq = r * 8 + sf;
             uint64 sqPosB = uint64(1 << sq);
-            if (sqPosB & blockboard != 0) break;
-            attacks |= sqPosB;
+
+            if (aRookB & sqPosB != 0){
+                attacks |= sqPosB;
+                break;
+            }else if (sqPosB & blockboard != 0) break;
+            
             r += 1;
         }
 
@@ -89,7 +115,12 @@ contract Game is IChess {
         while (f <= 7){
             uint sq = sr * 8 + f;
             uint64 sqPosB = uint64(1 << sq);
-            if (sqPosB & blockboard != 0) break;
+            
+            if (aRookB & sqPosB != 0){
+                attacks |= sqPosB;
+                break;
+            }else if (sqPosB & blockboard != 0) break;
+
             attacks |= sqPosB;
             f += 1;
         }
@@ -99,7 +130,12 @@ contract Game is IChess {
             while (true){
                 uint sq = r * 8 + sf;
                 uint64 sqPosB = uint64(1 << sq);
-                if (sqPosB & blockboard != 0) break;
+
+                if (aRookB & sqPosB != 0){
+                    attacks |= sqPosB;
+                    break;
+                }else if (sqPosB & blockboard != 0) break;
+
                 attacks |= sqPosB;
                 if (r == 0) break;
                 r -= 1;
@@ -111,7 +147,12 @@ contract Game is IChess {
             while (true){
                 uint sq = sr * 8 + f;
                 uint64 sqPosB = uint64(1 << sq);
-                if (sqPosB & blockboard != 0) break;
+                
+                if (aRookB & sqPosB != 0){
+                    attacks |= sqPosB;
+                    break;
+                }else if (sqPosB & blockboard != 0) break;
+
                 attacks |= sqPosB;
                 if (f == 0) break;
                 f -= 1;
@@ -211,19 +252,22 @@ contract Game is IChess {
         }
 
         // bishop attacks on sq
-        uint64 bishopAttacks = getBishopAttacks(square, blockboard);
-        if (bishopAttacks & (side == 0 ? bitboards[uint(Piece.b)] : bitboards[uint(Piece.B)]) != 0){
+        uint64 bishopAttacks = getBishopAttacks(side == 0 ? Piece.b : Piece.B, square, blockboard, bitboards);
+        if (bishopAttacks != 0){
             return true;
         }
 
         // rook attacks on sq
-        uint64 rookAttacks = getRookAttacks(square, blockboard);
+        uint64 rookAttacks = getRookAttacks(side == 0 ? Piece.r : Piece.R, square, blockboard, bitboards);
         if (rookAttacks & (side == 0 ? bitboards[uint(Piece.r)] : bitboards[uint(Piece.R)]) != 0){
             return true;
         }
 
         // queen attacks on sq
-        uint64 queenAttacks = bishopAttacks | rookAttacks;
+        uint64 queenAttacks = (
+            getBishopAttacks(side == 0 ? Piece.q : Piece.Q, square, blockboard, bitboards) | 
+            getRookAttacks(side == 0 ? Piece.q : Piece.Q, square, blockboard, bitboards)
+        );
         if (queenAttacks & (side == 0 ? bitboards[uint(Piece.q)] : bitboards[uint(Piece.Q)]) != 0){
             return true;
         }

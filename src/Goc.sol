@@ -364,8 +364,9 @@ contract Goc is Game, ERC1155, DSTest {
     }
 
     event DF(bytes1 f, bool k, bytes d);
-
+    event DF(string key, bytes1 f);
     function parsePiece(bytes1 piece, uint side) public returns (Piece p) {
+        // emit DF("parsePiece ", piece);
         if (piece == bytes1("N")){
             if (side == 0){
                 return Piece.N;
@@ -398,7 +399,7 @@ contract Goc is Game, ERC1155, DSTest {
         }
     }
 
-    function findPieceSq(Piece p, uint64[12] memory bitboards, uint targetSq, uint eR, uint eF) public returns (uint sq){
+    function findPieceSq(Piece p, uint side, uint64[12] memory bitboards, uint targetSq, uint eR, uint eF) public returns (uint sq){
         uint64 sourceBoard = bitboards[uint(p)];
         uint64 targetBoard = uint64(1 << targetSq);
         uint64 blockboard = getBlockerboard(bitboards);
@@ -410,7 +411,10 @@ contract Goc is Game, ERC1155, DSTest {
             // that are reachable by pawn if pawn is on targetSq. We need to find
             // the squares from which pawns can reach the targetSq, thus we inverse
             // sides in function call.
-            attackBoard = getPawnAttacks(targetSq, p == Piece.P ? 1 : 0);
+            // Returned squares are only valid if target sqaure consists of a piece
+            if (blockboard & targetBoard != 0){
+                attackBoard = getPawnAttacks(targetSq, p == Piece.P ? 1 : 0);
+            }
             // pawn attacks does not include straight moves, thus adding them separately
             if (p == Piece.P){
                 if (targetBoard << 16 != 0) attackBoard |= targetBoard << 16;
@@ -427,21 +431,22 @@ contract Goc is Game, ERC1155, DSTest {
             attackBoard = getKnightAttacks(targetSq);
         }
         if (p == Piece.R || p == Piece.r){
-            attackBoard = getRookAttacks(targetSq, blockboard);
+            attackBoard = getRookAttacks(side == 0 ? Piece.R : Piece.r, targetSq, blockboard, bitboards);
         }
         if (p == Piece.B || p == Piece.b){
-            attackBoard = getBishopAttacks(targetSq, blockboard);
+            // flip the side since we are looking for sqaures that can reach target sq, not attack
+            attackBoard = getBishopAttacks(side == 0 ? Piece.B : Piece.b, targetSq, blockboard, bitboards);
+            // emit log_named_uint("aBishopB ", bitboards[side == 0 ? uint(Piece.b) : uint(Piece.B)]);
+            // emit log_named_uint("attack ", attackBoard);
         }
         if (p == Piece.Q || p == Piece.q){
-            attackBoard = getRookAttacks(targetSq, blockboard);
-            attackBoard |= getBishopAttacks(targetSq, blockboard);
+            attackBoard = getRookAttacks(side == 0 ? Piece.R : Piece.r, targetSq, blockboard, bitboards);
+            attackBoard |= getBishopAttacks(side == 0 ? Piece.B : Piece.b, targetSq, blockboard, bitboards);
         }
         for (uint256 index = 0; index < 64; index++) {      
-            if (sourceBoard & (1 << index) != 0){
-                uint64 newBoard = uint64(1 << index);
-                
+            uint64 newBoard = uint64(1 << index);
+            if (sourceBoard & newBoard != 0){
                 if (attackBoard & newBoard > 0){
-                    emit log_named_uint("index  insisde",index);
                     if (eR != 8 && index / 8 == eR){
                         sq = index;
                     }else if (eF != 8 && index % 8 == eF){
@@ -539,7 +544,7 @@ contract Goc is Game, ERC1155, DSTest {
             if (move[lIndex] == bytes1("x") && lIndex == 0){
                 // pawn
                 sP = side == 0 ? Piece.P : Piece.p;
-                sourceSq = findPieceSq(sP, bitboards, targetSq, 8, 8);
+                sourceSq = findPieceSq(sP, side, bitboards, targetSq, 8, 8);
             }else {
                 if (move[lIndex] == bytes1("x")){
                     lIndex -= 1;
@@ -549,18 +554,18 @@ contract Goc is Game, ERC1155, DSTest {
                 if (lIndex == 0){
                     // piece
                     sP = parsePiece(move[lIndex], side);
-                    sourceSq = findPieceSq(sP, bitboards, targetSq, 8, 8);
+                    sourceSq = findPieceSq(sP, side, bitboards, targetSq, 8, 8);
                 }else {
                     uint f = parseFileStr(move[lIndex]);
                     uint r = parseRankStr(move[lIndex]);
                     sP = parsePiece(move[lIndex-1], side);
-                    sourceSq = findPieceSq(sP, bitboards, targetSq, r, f);
+                    sourceSq = findPieceSq(sP, side, bitboards, targetSq, r, f);
                 }
             }
         }else{
             // pawn move
             sP = side == 0 ? Piece.P : Piece.p;
-            sourceSq = findPieceSq(sP, bitboards, targetSq, 8, 8);
+            sourceSq = findPieceSq(sP, side, bitboards, targetSq, 8, 8);
 
         }
 
@@ -576,7 +581,7 @@ contract Goc is Game, ERC1155, DSTest {
     }
 
     function test_parsePGNToMoveValue() public {
-        string memory pgnStr = "1. d4 d5 2. Nf3 c5 3. c3 e6 4. e3 Nf6 ";
+        string memory pgnStr = "1. d4 d5 2. Nf3 c5 3. c4 e6 4. e3 Nf6 5. Bd3 Nc6 6. Bd3 ";
 
         uint16 gameId = 1;
         newGame();
