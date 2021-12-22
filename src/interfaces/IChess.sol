@@ -10,7 +10,6 @@ interface IChess {
 
     enum MoveFlag {
         NoFlag,
-        DoublePush,
         Castle,
         PawnPromotion
     }

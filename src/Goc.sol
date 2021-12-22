@@ -348,15 +348,9 @@ contract Goc is Game, ERC1155, DSTest {
             p = append(p, "\n Flag: No Flag");
         }
         if (uint(moveMetadata.moveFlag) == 1){
-            p = append(p, "\n Flag: Double Push");
-        }
-        if (uint(moveMetadata.moveFlag) == 2){
-            p = append(p, "\n Flag: Enpassant");
-        }
-        if (uint(moveMetadata.moveFlag) == 3){
             p = append(p, "\n Flag: Castle");
         }
-        if (uint(moveMetadata.moveFlag) == 4){
+        if (uint(moveMetadata.moveFlag) == 2){
             p = append(p, "\n Flag: Pawn Promotion");
         }
         p = append(p, "\n");
@@ -520,7 +514,11 @@ contract Goc is Game, ERC1155, DSTest {
         return sq;
     }
 
-    // TODO (1) handle castles and pawn promotino (= sign)
+    function isEqual(bytes memory b1, bytes memory b2) public returns (bool){
+        return keccak256(abi.encodePacked(b1)) == keccak256(abi.encodePacked(b2));
+    }
+
+    // TODO (1) pawn promotion (= sign)
     function parsePGNMove(
         bytes memory move, 
         uint side, 
@@ -528,60 +526,87 @@ contract Goc is Game, ERC1155, DSTest {
         uint16 moveCount, 
         uint16 gameId
     ) public returns (uint moveValue){
-        // pawn move
-        uint lIndex = move.length - 1;
-        if (move[lIndex] == bytes1("+") || move[lIndex] == bytes1("#")){
-            lIndex -= 1;
+
+        // king side castle
+        if (isEqual(move, bytes("O-O"))){
+            moveValue = encodeMove(
+                side == 0 ? 60: 4, 
+                side == 0 ? 62: 6, 
+                0,
+                true,   
+                side,
+                gameId,
+                moveCount
+            );
         }
+        // queen side castle
+        else if (isEqual(move, bytes("O-O-O"))){
+            moveValue = encodeMove(
+                side == 0 ? 60: 4, 
+                side == 0 ? 58: 2, 
+                0,
+                true,   
+                side,
+                gameId,
+                moveCount
+            );
+        }
+        else {
+            // pawn move
+            uint lIndex = move.length - 1;
+            if (move[lIndex] == bytes1("+") || move[lIndex] == bytes1("#")){
+                lIndex -= 1;
+            }
 
-        uint targetSq = coordsToSq(bytes.concat(move[lIndex-1], move[lIndex]));
-        
-        Piece sP;
-        uint sourceSq;
-        if (lIndex-1 != 0){
-            lIndex -= 1;
+            uint targetSq = coordsToSq(bytes.concat(move[lIndex-1], move[lIndex]));
+            
+            Piece sP;
+            uint sourceSq;
+            if (lIndex-1 != 0){
+                lIndex -= 1;
 
-            if (move[lIndex] == bytes1("x") && lIndex == 0){
-                // pawn
-                sP = side == 0 ? Piece.P : Piece.p;
-                sourceSq = findPieceSq(sP, side, bitboards, targetSq, 8, 8);
-            }else {
-                if (move[lIndex] == bytes1("x")){
-                    lIndex -= 1;
-                }
-
-                // 0 or 1
-                if (lIndex == 0){
-                    // piece
-                    sP = parsePiece(move[lIndex], side);
+                if (move[lIndex] == bytes1("x") && lIndex == 0){
+                    // pawn
+                    sP = side == 0 ? Piece.P : Piece.p;
                     sourceSq = findPieceSq(sP, side, bitboards, targetSq, 8, 8);
                 }else {
-                    uint f = parseFileStr(move[lIndex]);
-                    uint r = parseRankStr(move[lIndex]);
-                    sP = parsePiece(move[lIndex-1], side);
-                    sourceSq = findPieceSq(sP, side, bitboards, targetSq, r, f);
+                    if (move[lIndex] == bytes1("x")){
+                        lIndex -= 1;
+                    }
+
+                    // 0 or 1
+                    if (lIndex == 0){
+                        // piece
+                        sP = parsePiece(move[lIndex], side);
+                        sourceSq = findPieceSq(sP, side, bitboards, targetSq, 8, 8);
+                    }else {
+                        uint f = parseFileStr(move[lIndex]);
+                        uint r = parseRankStr(move[lIndex]);
+                        sP = parsePiece(move[lIndex-1], side);
+                        sourceSq = findPieceSq(sP, side, bitboards, targetSq, r, f);
+                    }
                 }
+            }else{
+                // pawn move
+                sP = side == 0 ? Piece.P : Piece.p;
+                sourceSq = findPieceSq(sP, side, bitboards, targetSq, 8, 8);
+
             }
-        }else{
-            // pawn move
-            sP = side == 0 ? Piece.P : Piece.p;
-            sourceSq = findPieceSq(sP, side, bitboards, targetSq, 8, 8);
 
+            moveValue = encodeMove(
+                sourceSq, 
+                targetSq, 
+                0,
+                false,   
+                side,
+                gameId,
+                moveCount
+            );
         }
-
-        moveValue = encodeMove(
-            sourceSq, 
-            targetSq, 
-            0,
-            false,   
-            side,
-            gameId,
-            moveCount
-        );
     }
 
     function test_parsePGNToMoveValue() public {
-        string memory pgnStr = "1. d4 d5 2. Nf3 c5 3. c4 e6 4. e3 Nf6 5. Bd3 Nc6 6. Bd3 ";
+        string memory pgnStr = "1. d4 d5 2. Nf3 c5 3. c4 e6 4. e3 Nf6 5. Bd3 Nc6 6. O-O Bd6 ";
 
         uint16 gameId = 1;
         newGame();

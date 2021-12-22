@@ -983,6 +983,23 @@ contract Game is IChess {
                 gameState.bitboards[uint(move.targetPiece)] &= ~uint64(1) << move.targetSq;
             }
 
+            // update rook position, since position update of king has been taken care of above
+            if (move.moveFlag == MoveFlag.Castle){
+                if (move.targetSq == 62){
+                    // update rook on 63 to 61
+                    gameState.bitboards[uint(Piece.R)] = (gameState.bitboards[uint(Piece.R)] | uint64(1) << 61) & ~(uint64(1) << 63);
+                }else if (move.targetSq == 58){
+                    // update rook on 56 to 59
+                    gameState.bitboards[uint(Piece.R)] = (gameState.bitboards[uint(Piece.R)] | uint64(1) << 59) & ~(uint64(1) << 56);
+                }else if (move.targetSq == 6){
+                    // update rook on 7 to 5
+                    gameState.bitboards[uint(Piece.r)] = (gameState.bitboards[uint(Piece.r)] | uint64(1) << 5) & ~(uint64(1) << 7);
+                }else if (move.targetSq == 2){
+                    // update rook on 0 to 3
+                    gameState.bitboards[uint(Piece.r)] = (gameState.bitboards[uint(Piece.r)] | uint64(1) << 3) & ~(uint64(1) << 0);
+                }
+            }
+
             // update pawn promotion
             if (move.moveFlag == MoveFlag.PawnPromotion){
                 // add promoted piece at target sq
@@ -991,12 +1008,12 @@ contract Game is IChess {
                 gameState.bitboards[uint(move.sourcePiece)] &= ~uint64(1) << move.targetSq;
             }
             
-            // update enpassant
-            if (move.moveFlag == MoveFlag.DoublePush){
-                gameState.enpassantSq = move.moveLeftShift == true ? move.sourceSq + 8 : move.sourceSq - 8;
-            }else {
-                gameState.enpassantSq = 0; // Note 0 is an illegal enpassant square
-            }
+            // // update enpassant
+            // if (move.moveFlag == MoveFlag.DoublePush){
+            //     gameState.enpassantSq = move.moveLeftShift == true ? move.sourceSq + 8 : move.sourceSq - 8;
+            // }else {
+            //     gameState.enpassantSq = 0; // Note 0 is an illegal enpassant square
+            // }
 
             // update castling rights
             if (move.sourcePiece == Piece.K){
