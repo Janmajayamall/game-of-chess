@@ -194,7 +194,6 @@ contract TestHelpers is Game, DSTest {
         }
     }
 
-    // TODO (1) pawn promotion (= sign)
     function parsePGNToMoveValue(
         bytes memory move, 
         uint side, 
@@ -228,7 +227,18 @@ contract TestHelpers is Game, DSTest {
             );
         }
         else {
+            bool pawnPromotion = false;
+            uint promotedToPiece = 0;
+
             uint lIndex = move.length - 1;
+
+            // check pawn promotion
+            if (move[lIndex-1] == bytes1("=")){
+                pawnPromotion = true;
+                promotedToPiece = uint(parsePiece(move[lIndex], side));
+                lIndex -= 2;
+            }
+
             if (move[lIndex] == bytes1("+") || move[lIndex] == bytes1("#")){
                 lIndex -= 1;
             }
@@ -282,8 +292,8 @@ contract TestHelpers is Game, DSTest {
             moveValue = encodeMove(
                 sourceSq, 
                 targetSq, 
-                0,
-                false,   
+                promotedToPiece,
+                pawnPromotion,   
                 side,
                 gameId,
                 moveCount

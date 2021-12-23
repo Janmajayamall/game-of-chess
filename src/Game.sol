@@ -722,8 +722,14 @@ contract Game is IChess {
 
             // check for promotion
             if (move.moveFlag == MoveFlag.PawnPromotion){
-                // promoted piece cannot be unkown, cannot be a pawn
-                if (move.promotedToPiece == Piece.uk || uint(move.promotedToPiece) == 0 || uint(move.promotedToPiece) == 6){
+                // promoted piece cannot be unkown, pawn, or king
+                if (
+                    move.promotedToPiece == Piece.uk || 
+                    move.promotedToPiece == Piece.p || 
+                    move.promotedToPiece == Piece.P || 
+                    move.promotedToPiece == Piece.k || 
+                    move.promotedToPiece == Piece.K  
+                ){
                     return false;
                 }
 

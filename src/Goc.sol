@@ -245,8 +245,3 @@ Just thinking -
  1. Parse FEN and game & check game transition
  2. Work on NFT 
   */
-
-  /**
-    1. try parsing different boards
-    2. rearrange the code
-   */
