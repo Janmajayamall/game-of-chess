@@ -113,7 +113,7 @@ contract Goc is Game, ERC1155, DSTest, IGocEvents {
         _outcomeReserves.reserve1 = nReserve1;
         outcomeReserves[_moveValue] = _outcomeReserves;
 
-        emit OutcomeBought(_moveValue, to);
+        emit OutcomeBought(_moveValue, to, amountIn, amount0, amount1);
     }
 
     function sell(uint amountOut, address to, uint256 _moveValue) external {
@@ -153,7 +153,7 @@ contract Goc is Game, ERC1155, DSTest, IGocEvents {
         _outcomeReserves.reserve1 = nReserve1;
         outcomeReserves[_moveValue] = _outcomeReserves;
 
-        emit OutcomeSold(_moveValue, to);
+        emit OutcomeSold(_moveValue, to, amountOut, amount0In, amount1In);
     }
  
     function redeemWins(uint256 _moveValue, address to) external {
@@ -189,7 +189,7 @@ contract Goc is Game, ERC1155, DSTest, IGocEvents {
         IERC20(cToken).transfer(to, winAmount);
         cReserves -= winAmount;
 
-        emit WinningRedeemed(_moveValue);
+        emit WinningRedeemed(_moveValue, to);
     }
 
     function redeem(uint256 _moveValue, address to) external {
@@ -219,7 +219,7 @@ contract Goc is Game, ERC1155, DSTest, IGocEvents {
         IERC20(cToken).transfer(to, amountOut);
         cReserves -= amountOut;
 
-        emit BetRedeemed(_moveValue);
+        emit BetRedeemed(_moveValue, to);
     }
 
     // manager functions 
