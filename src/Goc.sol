@@ -74,6 +74,7 @@ contract Goc is Game, ERC1155, DSTest {
     }
 
     function buy(uint amount0, uint amount1, address to, uint256 _moveValue) external {
+        // market exists
         require(marketCreators[_moveValue] != address(0), "Market Invalid");
 
         // market should not have expired
@@ -97,7 +98,7 @@ contract Goc is Game, ERC1155, DSTest {
         _mint(address(this), oToken0Id, amountIn, '');
         _mint(address(this), oToken1Id, amountIn, '');
 
-        // optimistically transfer
+        // optimistically transfer amount0 & amount1
         safeTransferFrom(address(this), to, oToken0Id, amount0, '');
         safeTransferFrom(address(this), to, oToken1Id, amount1, '');
 
@@ -113,12 +114,13 @@ contract Goc is Game, ERC1155, DSTest {
     }
 
     function sell(uint amountOut, address to, uint256 _moveValue) external {
+        // market exists
         require(marketCreators[_moveValue] != address(0), "Market Invalid");
 
         // market should not have expired
-        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
-        uint16 _moveCount = decodeMoveCountFromMoveValue(_moveValue);
         {
+            uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
+            uint16 _moveCount = decodeMoveCountFromMoveValue(_moveValue);
             GameState memory _gameState = gamesState[_gameId];
             require(_gameState.moveCount + 1 == _moveCount, "Market expired");
         }
@@ -133,6 +135,10 @@ contract Goc is Game, ERC1155, DSTest {
         (uint oToken0Id, uint oToken1Id) = getOutcomeReservesTokenIds(_moveValue);
         uint amount0In = balanceOf(address(this), oToken0Id) - _outcomeReserves.reserve0;
         uint amount1In = balanceOf(address(this), oToken1Id) - _outcomeReserves.reserve1;
+
+        // burn outcome tokens equivalent to amount out
+        _burn(address(this), oToken0Id, amountOut);
+        _burn(address(this), oToken1Id, amountOut);
 
         // check invariance
         uint nReserve0 = _outcomeReserves.reserve0 + amount0In - amountOut;
@@ -151,7 +157,7 @@ contract Goc is Game, ERC1155, DSTest {
         uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
         GameState memory _gameState = gamesState[_gameId];
         bool isChosenMove = chosenMoveValues[_moveValue];
-        require(_gameState.state == 2 && isChosenMove == true);
+        require(_gameState.state == 2 && isChosenMove == true, "Invalid State");
 
         // amount0In and amount1In
         OutcomeReserves memory _outcomeReserves = outcomeReserves[_moveValue];
@@ -165,13 +171,13 @@ contract Goc is Game, ERC1155, DSTest {
 
         // win amount
         uint winAmount;
-        uint side = _moveValue >> 19 & 1;
+        uint side = _moveValue >> 17 & 1;
         if (_gameState.winner == 0 && side == 0){
             winAmount = amount0In;
         }else if (_gameState.winner == 1 && side == 1){
             winAmount = amount1In;
         }else if (_gameState.winner == 2){
-            winAmount = amount0In + amount1In;
+            winAmount = amount0In/2 + amount1In/2;
         }
 
         // transfer win amount and update cReservers
