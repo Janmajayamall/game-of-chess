@@ -11,8 +11,8 @@ contract Game is IChess {
     // game index
     uint16 public gameIndex;
 
-    event Log(string f);
-    event Log(string f, uint d);
+    // event Log(string f);
+    // event Log(string f, uint d);
 
     function getBishopAttacks(Piece attackingPiece, uint square, uint blockboard, uint64[12] memory bitboards) internal returns (uint64 attacks){
         uint sr = square / 8;

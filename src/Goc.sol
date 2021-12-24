@@ -218,6 +218,14 @@ contract Goc is Game, ERC1155, DSTest {
     }
 
     // manager functions 
+    // TODO look for an efficient way for storing sorted list of
+    // YES probabilty of every market for each moveCount.
+    // Rn, the manager is trusted with calling makeMove 
+    // with the moveValue (i.e. marketId) that has highest YES
+    // probability among the rest of the markets for the same 
+    // move count. This isn't ideal,, since a single mistake
+    // by manager would destroy the enitre purpose of this 
+    // contract. 
     function makeMove(uint256 _moveValue) external {
         require(manager == msg.sender, "Auth ERR");
         require(marketCreators[_moveValue] != address(0), "Invalid Market");
