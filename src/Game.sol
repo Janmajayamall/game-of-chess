@@ -1069,7 +1069,16 @@ contract Game is IChess {
         gamesState[_gameId] = gameState;
     }
 
-    function newGame() public {
+    function _oddCaseDeclareOutcome(uint256 outcome, uint256 _moveValue) internal {
+        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
+        GameState memory _gameState = gamesState[_gameId];
+        require(_gameState.state == 1, "Invalid State");
+        require(outcome < 3, "Invalid outcome");
+        _gameState.winner = uint8(outcome);
+        gamesState[_gameId] = _gameState;
+    }
+
+    function _newGame() internal {
         uint16 _gameIndex = gameIndex;
 
         // initialise game state
@@ -1106,8 +1115,6 @@ contract Game is IChess {
         // update index
         gameIndex = _gameIndex + 1;
     }
-
-
 }
 
 

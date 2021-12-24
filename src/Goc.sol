@@ -21,9 +21,9 @@ contract Goc is Game, ERC1155, DSTest {
 
     address manager;
 
-    // constructor(address _manager) {
-    //     manager = _manager;
-    // }
+    constructor(address _manager) {
+        manager = _manager;
+    }
 
     function getOutcomeReservesTokenIds(uint256 _moveValue) public pure returns (uint oToken0Id, uint oToken1Id){
         oToken0Id = uint(keccak256(abi.encode(_moveValue, 0)));
@@ -237,6 +237,16 @@ contract Goc is Game, ERC1155, DSTest {
         chosenMoveValues[_moveValue] = true;
 
         // emit makeMove
+    }
+
+    function oddCaseDeclareOutcome(uint256 outcome, uint256 _moveValue) external {
+        require(msg.sender == manager, "Auth ERR");
+        _oddCaseDeclareOutcome(outcome, _moveValue);
+    }
+
+    function newGame() external {
+        require(msg.sender == manager, "Auth ERR");
+        _newGame();
     }
 
 }
