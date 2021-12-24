@@ -4,10 +4,11 @@ pragma solidity ^0.8.0;
 import "ds-test/test.sol";
 import "./interfaces/IChess.sol";
 import "./interfaces/IERC20.sol";
+import "./interfaces/IGocEvents.sol";
 import "./ERC1155.sol";
 import "./Game.sol";
 
-contract Goc is Game, ERC1155, DSTest {
+contract Goc is Game, ERC1155, DSTest, IGocEvents {
 
     mapping(uint256 => address) marketCreators;
 
@@ -70,7 +71,7 @@ contract Goc is Game, ERC1155, DSTest {
 
         require(fundingAmount > 0, "Funding: 0");
 
-        // hurray market created; TODO emit event
+        emit MarketCreated(_moveValue, _creator);
     }
 
     function buy(uint amount0, uint amount1, address to, uint256 _moveValue) external {
@@ -111,6 +112,8 @@ contract Goc is Game, ERC1155, DSTest {
         _outcomeReserves.reserve0 = nReserve0;
         _outcomeReserves.reserve1 = nReserve1;
         outcomeReserves[_moveValue] = _outcomeReserves;
+
+        emit OutcomeBought(_moveValue, to);
     }
 
     function sell(uint amountOut, address to, uint256 _moveValue) external {
@@ -149,6 +152,8 @@ contract Goc is Game, ERC1155, DSTest {
         _outcomeReserves.reserve0 = nReserve0;
         _outcomeReserves.reserve1 = nReserve1;
         outcomeReserves[_moveValue] = _outcomeReserves;
+
+        emit OutcomeSold(_moveValue, to);
     }
  
     function redeemWins(uint256 _moveValue, address to) external {
@@ -184,7 +189,7 @@ contract Goc is Game, ERC1155, DSTest {
         IERC20(cToken).transfer(to, winAmount);
         cReserves -= winAmount;
 
-        // emit redeemWins;
+        emit WinningRedeemed(_moveValue);
     }
 
     function redeem(uint256 _moveValue, address to) external {
@@ -214,7 +219,7 @@ contract Goc is Game, ERC1155, DSTest {
         IERC20(cToken).transfer(to, amountOut);
         cReserves -= amountOut;
 
-        // emit redeem
+        emit BetRedeemed(_moveValue);
     }
 
     // manager functions 
@@ -244,7 +249,7 @@ contract Goc is Game, ERC1155, DSTest {
         // set _moveValue as chosen move
         chosenMoveValues[_moveValue] = true;
 
-        // emit makeMove
+        emit MoveMade(_moveValue);
     }
 
     function oddCaseDeclareOutcome(uint256 outcome, uint256 _moveValue) external {
@@ -254,7 +259,8 @@ contract Goc is Game, ERC1155, DSTest {
 
     function newGame() external {
         require(msg.sender == manager, "Auth ERR");
-        _newGame();
+        uint16 gameIndex = _newGame();
+        emit GameCreated(gameIndex);
     }
 
 }

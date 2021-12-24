@@ -15,12 +15,12 @@ interface IGocDataTypes {
     }
 
     struct MoveMetadata {
-        uint side;
+        uint256 side;
         uint16 moveCount;
 
-        uint64 sourceSq;
-        uint64 targetSq; 
-        uint64 moveBySq; 
+        uint256 sourceSq;
+        uint256 targetSq; 
+        uint256 moveBySq; 
 
         uint64 sourcePieceBitBoard;
         uint64 targetPieceBitBoard;

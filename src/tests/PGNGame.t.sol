@@ -23,7 +23,7 @@ contract PGNGame is TestHelpers {
 
         uint16 gameId = 1;
 
-        newGame();
+        _newGame();
 
         // run
         bytes memory pgnBytes = bytes(pgnStr);

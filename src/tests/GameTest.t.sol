@@ -6,7 +6,7 @@ import "./../tests/TestHelpers.t.sol";
 contract GameTest is TestHelpers {
 
     function setUp() public {
-        newGame();
+        _newGame();
 
         uint moveV = encodeMove(
             48, 
@@ -21,7 +21,7 @@ contract GameTest is TestHelpers {
     }
 
     function test_createNewGame() public {
-        newGame();
+        _newGame();
     }
 
     function test_pawnMove() public {

@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.0;
 // import "ds-test/test.sol";
-import "./interfaces/IChess.sol";
+import "./interfaces/IGocDataTypes.sol";
 
-contract Game is IChess {
+contract Game is IGocDataTypes {
     // gameId => game's state
-    mapping(uint16 => GameState) public gamesState;
+    mapping(uint16 => GameState) gamesState;
     
     // game index
     uint16 public gameIndex;
@@ -14,7 +14,11 @@ contract Game is IChess {
     // event Log(string f);
     // event Log(string f, uint d);
 
-    function getBishopAttacks(Piece attackingPiece, uint square, uint blockboard, uint64[12] memory bitboards) internal returns (uint64 attacks){
+    function getGameState(uint16 _gameIndex) public  returns (GameState memory){
+        return gamesState[_gameIndex];
+    }
+
+    function getBishopAttacks(Piece attackingPiece, uint square, uint blockboard, uint64[12] memory bitboards) public  returns (uint64 attacks){
         uint sr = square / 8;
         uint sf = square % 8;
 
@@ -95,7 +99,7 @@ contract Game is IChess {
         }
     }
 
-    function getRookAttacks(Piece attackingPiece, uint square, uint blockboard, uint64[12] memory bitboards) internal pure returns (uint64 attacks) {
+    function getRookAttacks(Piece attackingPiece, uint square, uint blockboard, uint64[12] memory bitboards) public  pure returns (uint64 attacks) {
         uint sr = square / 8;
         uint sf = square % 8;
 
@@ -166,7 +170,7 @@ contract Game is IChess {
         }
     }
 
-    function getPawnAttacks(uint square, uint side) internal pure returns (uint64 attacks){
+    function getPawnAttacks(uint square, uint side) public  pure returns (uint64 attacks){
         // not files, for move validations
         uint64 notAFile = 18374403900871474942;
         uint64 notHFile = 9187201950435737471;
@@ -185,7 +189,7 @@ contract Game is IChess {
         }
     }
 
-    function getKingAttacks(uint square) internal pure returns (uint64 attacks){
+    function getKingAttacks(uint square) public  pure returns (uint64 attacks){
         // not files, for move validations
         uint64 notAFile = 18374403900871474942;
         uint64 notHFile = 9187201950435737471;
@@ -205,7 +209,7 @@ contract Game is IChess {
         if (sqBitboard << 1 & notAFile != 0) attacks |= sqBitboard << 1;
     }
 
-    function getKnightAttacks(uint square) internal pure returns (uint64 attacks){
+    function getKnightAttacks(uint square) public  pure returns (uint64 attacks){
         // not files, for move validations
         uint64 notAFile = 18374403900871474942;
         uint64 notHFile = 9187201950435737471;
@@ -227,7 +231,7 @@ contract Game is IChess {
         if (sqBitboard << 10 & notABFile != 0) attacks |= sqBitboard << 10;
     }
 
-    function isSquareAttacked(uint square, Piece piece, uint64[12] memory bitboards, uint blockboard) internal returns (bool){
+    function isSquareAttacked(uint square, Piece piece, uint64[12] memory bitboards, uint blockboard) public  returns (bool){
         if (piece == Piece.uk){
             return false;
         }
@@ -284,17 +288,17 @@ contract Game is IChess {
         return false;
     }
 
-    function decodeGameIdFromMoveValue(uint256 moveValue) internal pure returns (uint16 gameId){
+    function decodeGameIdFromMoveValue(uint256 moveValue) public pure returns (uint16 gameId){
         gameId = uint16((moveValue >> 20) & 65535);
     }
 
-    function decodeMoveCountFromMoveValue(uint256 moveValue) internal pure returns (uint16 gameId){
+    function decodeMoveCountFromMoveValue(uint256 moveValue) public pure returns (uint16 gameId){
         gameId = uint16(moveValue >> 36);
     }
 
-    function decodeMoveMetadataFromMoveValue(uint256 moveValue, uint64[12] memory bitboards) internal pure returns (MoveMetadata memory moveMetadata) {
-        moveMetadata.sourceSq = uint64(moveValue & 63);
-        moveMetadata.targetSq = uint64((moveValue >> 6) & 63);
+    function decodeMoveMetadataFromMoveValue(uint256 moveValue, uint64[12] memory bitboards) public pure returns (MoveMetadata memory moveMetadata) {
+        moveMetadata.sourceSq = moveValue & 63;
+        moveMetadata.targetSq = (moveValue >> 6) & 63;
         moveMetadata.side = (moveValue >> 17) & 1;
         moveMetadata.moveCount = uint16(moveValue >> 36);
 
@@ -327,8 +331,8 @@ contract Game is IChess {
         // set pieces
         moveMetadata.sourcePiece = Piece.uk;
         moveMetadata.targetPiece = Piece.uk;
-        moveMetadata.sourcePieceBitBoard = uint64(1) << moveMetadata.sourceSq;
-        moveMetadata.targetPieceBitBoard = uint64(1) << moveMetadata.targetSq;
+        moveMetadata.sourcePieceBitBoard = uint64(1 << moveMetadata.sourceSq);
+        moveMetadata.targetPieceBitBoard = uint64(1 << moveMetadata.targetSq);
         for (uint64 index = 0; index < bitboards.length; index++) {
             uint64 board = bitboards[index];
             if ((moveMetadata.sourcePieceBitBoard & board)>0){
@@ -341,7 +345,7 @@ contract Game is IChess {
         require(moveMetadata.sourcePiece != Piece.uk, "Unknown Piece");
     }
 
-    function getBlockerboard(uint64[12] memory bitboards) internal pure returns (uint64 blockerboard){
+    function getBlockerboard(uint64[12] memory bitboards) public pure returns (uint64 blockerboard){
         blockerboard |= bitboards[uint(Piece.p)];
         blockerboard |= bitboards[uint(Piece.n)];
         blockerboard |= bitboards[uint(Piece.b)];
@@ -698,7 +702,7 @@ contract Game is IChess {
                     return false;
                 }
                 // down
-                if (move.sourcePieceBitBoard << move.moveBySq == 0){
+                if (move.sourcePieceBitBoard << uint64(move.moveBySq) == 0){
                     return false;
                 }
             }else if (move.moveBySq == 16) {
@@ -991,7 +995,7 @@ contract Game is IChess {
         // game not over
         else {
             // update source piece pos to target sq
-            gameState.bitboards[uint(move.sourcePiece)] = (gameState.bitboards[uint(move.sourcePiece)] | uint64(1) << move.targetSq) & ~(uint64(1) << move.sourceSq);
+            gameState.bitboards[uint(move.sourcePiece)] = (gameState.bitboards[uint(move.sourcePiece)] | uint64(1 << move.targetSq)) & ~(uint64(1 << move.sourceSq));
            
             // remove target piece from target sq
             if (move.targetPiece != Piece.uk ){
@@ -1018,14 +1022,14 @@ contract Game is IChess {
             // update pawn promotion
             if (move.moveFlag == MoveFlag.PawnPromotion){
                 // add promoted piece at target sq
-                gameState.bitboards[uint(move.promotedToPiece)] |= uint64(1) << move.targetSq;
+                gameState.bitboards[uint(move.promotedToPiece)] |= uint64(1 << move.targetSq);
                 // remove pawn from target sq
-                gameState.bitboards[uint(move.sourcePiece)] &= ~uint64(1) << move.targetSq;
+                gameState.bitboards[uint(move.sourcePiece)] &= ~uint64(1 << move.targetSq);
             }
             
             // update enpassant
             if ((move.sourcePiece == Piece.p || move.sourcePiece == Piece.P) && move.moveBySq == 16){
-                gameState.enpassantSq = move.moveLeftShift == true ? move.sourceSq + 8 : move.sourceSq - 8;
+                gameState.enpassantSq = uint64(move.moveLeftShift == true ? move.sourceSq + 8 : move.sourceSq - 8);
             }else{
                 gameState.enpassantSq = 0; // Note 0 is an illegal enpassant square
             }
@@ -1069,7 +1073,7 @@ contract Game is IChess {
         gamesState[_gameId] = gameState;
     }
 
-    function _oddCaseDeclareOutcome(uint256 outcome, uint256 _moveValue) internal {
+    function _oddCaseDeclareOutcome(uint256 outcome, uint256 _moveValue) internal  {
         uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
         GameState memory _gameState = gamesState[_gameId];
         require(_gameState.state == 1, "Invalid State");
@@ -1078,9 +1082,7 @@ contract Game is IChess {
         gamesState[_gameId] = _gameState;
     }
 
-    function _newGame() internal {
-        uint16 _gameIndex = gameIndex;
-
+    function _newGame() internal returns (uint16 newGameIndex) {
         // initialise game state
         GameState memory _gameState;
         _gameState.state = 1;
@@ -1110,10 +1112,11 @@ contract Game is IChess {
         ];
 
         // add game
-        gamesState[_gameIndex + 1] = _gameState;
+        newGameIndex = gameIndex + 1;
+        gamesState[newGameIndex] = _gameState;
 
         // update index
-        gameIndex = _gameIndex + 1;
+        gameIndex = newGameIndex;
     }
 }
 
