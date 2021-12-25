@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
-import "./../Game.sol";
+import "./../Goc.sol";
 import "./../libraries/String.sol";
 import "./../libraries/Uint.sol";
 import "./../interfaces/IGocDataTypes.sol";
 import "ds-test/test.sol";
 
-contract TestHelpers is Game, DSTest {
+contract TestHelpers is Goc, DSTest {
     using String for string;
     using Uint for uint;
 

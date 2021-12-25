@@ -8,7 +8,7 @@ import "./interfaces/IGocEvents.sol";
 import "./ERC1155.sol";
 import "./Game.sol";
 
-contract Goc is Game, ERC1155, DSTest, IGocEvents {
+contract Goc is Game, ERC1155, IGocEvents {
 
     mapping(uint256 => address) marketCreators;
 
@@ -18,12 +18,13 @@ contract Goc is Game, ERC1155, DSTest, IGocEvents {
     mapping(uint256 => bool) chosenMoveValues;
     mapping(uint16 => uint) gamesLastMoveTimestamp;
 
-    address constant cToken = address(0);
+    address immutable cToken;
 
     address manager;
 
-    constructor(address _manager) {
-        manager = _manager;
+    constructor(address _cToken) {
+        manager = msg.sender;
+        cToken = _cToken;
     }
 
     function getOutcomeReservesTokenIds(uint256 _moveValue) public pure returns (uint oToken0Id, uint oToken1Id){
@@ -238,7 +239,8 @@ contract Goc is Game, ERC1155, DSTest, IGocEvents {
         // Time elapsed since last move should be atleast 24 hours
         uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
         uint lastMoveTimestamp = gamesLastMoveTimestamp[_gameId];
-        require(block.timestamp - lastMoveTimestamp > 24*60*60, "Time Err");
+        // TODO switch time diffrence back to 24 hrs from 60 seconds
+        require(block.timestamp - lastMoveTimestamp > 60, "Time Err");
 
         // apply move to the game state
         applyMove(_moveValue);
@@ -260,9 +262,15 @@ contract Goc is Game, ERC1155, DSTest, IGocEvents {
     function newGame() external {
         require(msg.sender == manager, "Auth ERR");
         uint16 gameIndex = _newGame();
+        // set timestamp for first move
+        gamesLastMoveTimestamp[gameIndex] = block.timestamp;
         emit GameCreated(gameIndex);
     }
 
+    function updateManager(address to) external {
+        require(msg.sender == manager, "Auth ERR");
+        manager = to;
+    }
 }
 
 /**

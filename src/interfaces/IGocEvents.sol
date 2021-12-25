@@ -9,5 +9,5 @@ interface IGocEvents {
     event WinningRedeemed(uint256 moveValue, address by);
     event BetRedeemed(uint256 moveValue, address by);
     event MoveMade(uint256 moveValue);
-    event GameCreated(uint256 gameId);
+    event GameCreated(uint16 gameId);
 }

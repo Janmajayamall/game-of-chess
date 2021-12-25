@@ -22,4 +22,5 @@ contract GocRouter {
     function getGameState(uint16 _gameId) external returns (IGocDataTypes.GameState memory gameState) {
         gameState = goc.getGameState(_gameId);
     }
+
 }
