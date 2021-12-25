@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "./libraries/GocHelpers.sol";
+import "./libraries/GameHelpers.sol";
 import "./Goc.sol";
 import "./interfaces/IGocDataTypes.sol";
 
@@ -16,7 +16,7 @@ contract GocRouter {
 
     function getGameBoardString(uint16 _gameId) external returns (string memory){
         IGocDataTypes.GameState memory gameState = goc.getGameState(_gameId);
-        return GocHelpers.parseBitboardsToString(gameState.bitboards);
+        return GameHelpers.parseBitboardsToString(gameState.bitboards);
     }
 
     function getGameState(uint16 _gameId) external returns (IGocDataTypes.GameState memory gameState) {

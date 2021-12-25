@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
-import "./../Goc.sol";
 import "./../libraries/String.sol";
 import "./../libraries/Uint.sol";
+import "./../libraries/GameHelpers.sol";
 import "./../interfaces/IGocDataTypes.sol";
-import "./../helpers/TestToken.sol";
 
 library TestHelpers {
     using String for string;
@@ -68,37 +67,37 @@ library TestHelpers {
     }
 
     function parsePiece(bytes1 piece, uint side) public returns (IGocDataTypes.Piece p) {
-        p = Piece.uk;
+        p = IGocDataTypes.Piece.uk;
 
         if (piece == bytes1("N")){
             if (side == 0){
-                return Piece.N;
+                return IGocDataTypes.Piece.N;
             }
-            return Piece.n;
+            return IGocDataTypes.Piece.n;
         }
         if (piece == bytes1("R")){
             if (side == 0){
-                return Piece.R;
+                return IGocDataTypes.Piece.R;
             }
-            return Piece.r;
+            return IGocDataTypes.Piece.r;
         }
         if (piece == bytes1("B")){
             if (side == 0){
-                return Piece.B;
+                return IGocDataTypes.Piece.B;
             }
-            return Piece.b;
+            return IGocDataTypes.Piece.b;
         }
         if (piece == bytes1("Q")){
             if (side == 0){
-                return Piece.Q;
+                return IGocDataTypes.Piece.Q;
             }
-            return Piece.q;
+            return IGocDataTypes.Piece.q;
         }
         if (piece == bytes1("K")){
             if (side == 0){
-                return Piece.K;
+                return IGocDataTypes.Piece.K;
             }
-            return Piece.k;
+            return IGocDataTypes.Piece.k;
         }
     }
 
@@ -134,11 +133,11 @@ library TestHelpers {
     function findSourceSqForTargetSq(IGocDataTypes.Piece p, uint side, uint64[12] memory bitboards, uint targetSq, uint eR, uint eF) public returns (uint sq){
         uint64 sourceBoard = bitboards[uint(p)];
         uint64 targetBoard = uint64(1 << targetSq);
-        uint64 blockboard = getBlockerboard(bitboards);
+        uint64 blockboard = GameHelpers.getBlockerboard(bitboards);
 
         // finding sqaures from where Piece p can reach target sq
         uint64 attackBoard;
-        if (p == Piece.P || p == Piece.p){
+        if (p == IGocDataTypes.Piece.P || p == IGocDataTypes.Piece.p){
             // note - getPawnAttack returns squares that can attack the target square while
             // taking the side into consideration. For example, when looking for attack squares
             // when targetSq is assumbed to have a white piece the search would always contain squares
@@ -150,33 +149,33 @@ library TestHelpers {
             // blockboard & targetBoard != 0 is required to check whether the targetSq consists of some piece, 
             // since pawns can move diagonally only when targetSq consists something. 
             if (blockboard & targetBoard != 0){
-                attackBoard = getPawnAttacks(targetSq, p == Piece.P ? 1 : 0);
+                attackBoard = GameHelpers.getPawnAttacks(targetSq, p == IGocDataTypes.Piece.P ? 1 : 0);
             }
             // pawn attacks do not include straight moves, thus adding them separately
-            if (p == Piece.P){
+            if (p == IGocDataTypes.Piece.P){
                 if (targetBoard << 16 != 0) attackBoard |= targetBoard << 16;
                 if (targetBoard << 8 != 0) attackBoard |= targetBoard << 8;
-            }else if (p == Piece.p){
+            }else if (p == IGocDataTypes.Piece.p){
                 if (targetBoard >> 16 != 0) attackBoard |= targetBoard >> 16;
                 if (targetBoard >> 8 != 0) attackBoard |= targetBoard >> 8;
             }
         }
-        if (p == Piece.K || p == Piece.k){
-            attackBoard = getKingAttacks(targetSq);
+        if (p == IGocDataTypes.Piece.K || p == IGocDataTypes.Piece.k){
+            attackBoard = GameHelpers.getKingAttacks(targetSq);
         }
-        if (p == Piece.N || p == Piece.n){
-            attackBoard = getKnightAttacks(targetSq);
+        if (p == IGocDataTypes.Piece.N || p == IGocDataTypes.Piece.n){
+            attackBoard = GameHelpers.getKnightAttacks(targetSq);
         }
-        if (p == Piece.R || p == Piece.r){
-            attackBoard = getRookAttacks(side == 0 ? Piece.R : Piece.r, targetSq, blockboard, bitboards);
+        if (p == IGocDataTypes.Piece.R || p == IGocDataTypes.Piece.r){
+            attackBoard = GameHelpers.getRookAttacks(side == 0 ? IGocDataTypes.Piece.R : IGocDataTypes.Piece.r, targetSq, blockboard, bitboards);
         }
-        if (p == Piece.B || p == Piece.b){
+        if (p == IGocDataTypes.Piece.B || p == IGocDataTypes.Piece.b){
             // flip the side since we are looking for sqaures that can reach target sq, not attack
-            attackBoard = getBishopAttacks(side == 0 ? Piece.B : Piece.b, targetSq, blockboard, bitboards);
+            attackBoard = GameHelpers.getBishopAttacks(side == 0 ? IGocDataTypes.Piece.B : IGocDataTypes.Piece.b, targetSq, blockboard, bitboards);
         }
-        if (p == Piece.Q || p == Piece.q){
-            attackBoard = getRookAttacks(side == 0 ? Piece.Q : Piece.q, targetSq, blockboard, bitboards);
-            attackBoard |= getBishopAttacks(side == 0 ? Piece.Q : Piece.q, targetSq, blockboard, bitboards);
+        if (p == IGocDataTypes.Piece.Q || p == IGocDataTypes.Piece.q){
+            attackBoard = GameHelpers.getRookAttacks(side == 0 ? IGocDataTypes.Piece.Q : IGocDataTypes.Piece.q, targetSq, blockboard, bitboards);
+            attackBoard |= GameHelpers.getBishopAttacks(side == 0 ? IGocDataTypes.Piece.Q : IGocDataTypes.Piece.q, targetSq, blockboard, bitboards);
         }
         for (uint256 index = 0; index < 64; index++) {      
             uint64 newBoard = uint64(1 << index);
@@ -245,14 +244,14 @@ library TestHelpers {
 
             uint targetSq = coordsToSq(bytes.concat(move[lIndex-1], move[lIndex]));
             
-            Piece sP;
+            IGocDataTypes.Piece sP;
             uint sourceSq;
             if (lIndex-1 != 0){
                 lIndex -= 2;
 
                 if (move[lIndex] == bytes1("x") && lIndex == 0){
                     // pawn
-                    sP = side == 0 ? Piece.P : Piece.p;
+                    sP = side == 0 ? IGocDataTypes.Piece.P : IGocDataTypes.Piece.p;
                     sourceSq = findSourceSqForTargetSq(sP, side, bitboards, targetSq, 8, 8);
                 }else {
                     if (move[lIndex] == bytes1("x")){
@@ -264,7 +263,7 @@ library TestHelpers {
                     // or rank/column defining position of pawn piece (for situations when 2 pawns can perform
                     // the same move).
                     // If lIndex == 1, then index pos 1 defines rank/column of piece at index pos 0
-                    if (lIndex == 0 && parsePiece(move[lIndex], side) != Piece.uk){
+                    if (lIndex == 0 && parsePiece(move[lIndex], side) != IGocDataTypes.Piece.uk){
                         // it's a piece
                         sP = parsePiece(move[lIndex], side);
                         sourceSq = findSourceSqForTargetSq(sP, side, bitboards, targetSq, 8, 8);
@@ -275,7 +274,7 @@ library TestHelpers {
 
                         if (lIndex == 0){
                             // pawn piece
-                            sP = side == 0 ? Piece.P : Piece.p;
+                            sP = side == 0 ? IGocDataTypes.Piece.P : IGocDataTypes.Piece.p;
                         }else {
                             sP = parsePiece(move[lIndex-1], side);
                         }
@@ -284,7 +283,7 @@ library TestHelpers {
                 }
             }else{
                 // pawn move
-                sP = side == 0 ? Piece.P : Piece.p;
+                sP = side == 0 ? IGocDataTypes.Piece.P : IGocDataTypes.Piece.p;
                 sourceSq = findSourceSqForTargetSq(sP, side, bitboards, targetSq, 8, 8);
 
             }
@@ -310,8 +309,7 @@ library TestHelpers {
 
     ///////////////////////////////// PRINT HELPERS /////////////////////////////////
     
-    function formatBoardToString(uint16 _gameId) internal returns (string memory p) {
-        uint64[12] memory bitboards = gamesState[_gameId].bitboards;
+    function formatBoardToString(uint64[12] memory bitboards) internal returns (string memory p) {
         uint[] memory boardMap = new uint[](64);
 
         // make every index 64 for for overlapping indentification
@@ -380,10 +378,9 @@ library TestHelpers {
 
     }
 
-    function formatMoveMetadataToString(uint _moveValue) internal returns (string memory p) {
-        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
-        GameState memory _gameState = gamesState[_gameId];
-        MoveMetadata memory moveMetadata = decodeMoveMetadataFromMoveValue(_moveValue, _gameState.bitboards);
+    function formatMoveMetadataToString(uint _moveValue, uint64[12] memory bitboards) internal pure returns (string memory p) {
+        uint16 _gameId = GameHelpers.decodeGameIdFromMoveValue(_moveValue);
+        IGocDataTypes.MoveMetadata memory moveMetadata = GameHelpers.decodeMoveMetadataFromMoveValue(_moveValue, bitboards);
 
         p = p.append(string("\n Game ID: ").append(uint(_gameId).toString()));
         if (moveMetadata.side == 0){
