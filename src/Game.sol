@@ -36,12 +36,20 @@ contract Game is IGocDataTypes {
         }
         // game not over
         else {
+            // increment halfmove clock
+            gameState.halfMoveCount += 1;
+
             // update source piece pos to target sq
             gameState.bitboards[uint(move.sourcePiece)] = (gameState.bitboards[uint(move.sourcePiece)] | uint64(1 << move.targetSq)) & ~(uint64(1 << move.sourceSq));
            
             // remove target piece from target sq
             if (move.targetPiece != Piece.uk ){
                 gameState.bitboards[uint(move.targetPiece)] &= ~uint64(1 << move.targetSq);
+            }
+            
+            // update half move count
+            if (move.targetPiece != Piece.uk || move.sourcePiece == Piece.p || move.sourcePiece == Piece.P) {
+                gameState.halfMoveCount = 0;
             }
 
             // update rook position, since position update of king has been taken care of above

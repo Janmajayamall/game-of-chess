@@ -50,6 +50,9 @@ interface IGocDataTypes {
         // moves count
         uint16 moveCount;
 
+        // halfmove clock
+        uint16 halfMoveCount; 
+
         // enpassant
         uint64 enpassantSq;
 
