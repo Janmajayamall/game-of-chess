@@ -14,13 +14,25 @@ contract GocRouter {
         goc = Goc(gocAddress);
     }
 
-    function getGameBoardString(uint16 _gameId) external returns (string memory){
-        IGocDataTypes.GameState memory gameState = goc.getGameState(_gameId);
-        return GameHelpers.parseBitboardsToString(gameState.bitboards);
+    function getGameFenString(uint16 _gameId) external view returns (string memory){
+        return GameHelpers.parseGameStateToFenString(goc.getGameState(_gameId));
     }
 
-    function getGameState(uint16 _gameId) external returns (IGocDataTypes.GameState memory gameState) {
+    function getGameState(uint16 _gameId) external view returns (IGocDataTypes.GameState memory gameState) {
         gameState = goc.getGameState(_gameId);
+    }
+
+    function getGameIdFromMoveValue(uint256 _moveValue) external pure returns(uint16 _gameId){
+        _gameId = GameHelpers.decodeGameIdFromMoveValue(_moveValue);
+    }
+
+    function getMoveCountFromMoveValue(uint256 _moveValue) external pure returns(uint16 _moveCount){
+        _moveCount = GameHelpers.decodeMoveCountFromMoveValue(_moveValue);
+    }
+
+    function getMoveMetadataFromMoveValue(uint256 _moveValue) external view returns(IGocDataTypes.MoveMetadata memory _moveMetadata){
+        uint16 _gameId = GameHelpers.decodeGameIdFromMoveValue(_moveValue);
+        _moveMetadata = GameHelpers.decodeMoveMetadataFromMoveValue(_moveValue, goc.getGameState(_gameId).bitboards);
     }
 
 }

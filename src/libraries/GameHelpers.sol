@@ -11,7 +11,7 @@ library GameHelpers {
     using String for string;
     using Uint for uint;
 
-    function parseUintToPieceChar(uint val) internal pure returns (string memory ){
+    function parseUintToPieceChar(uint val) internal pure returns (string memory){
         require(val < 12, "Invalid Val");
         IGocDataTypes.Piece piece = IGocDataTypes.Piece(val);
         if (IGocDataTypes.Piece.p == piece){
