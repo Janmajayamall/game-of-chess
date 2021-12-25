@@ -10,7 +10,7 @@ library TestHelpers {
     using String for string;
     using Uint for uint;
 
-    function parseRankStr(bytes1 rank) public returns (uint r){
+    function parseRankStr(bytes1 rank) internal returns (uint r){
         r = 8;
         if (rank == bytes1("1")){
             r = 7;
@@ -38,7 +38,7 @@ library TestHelpers {
         }
     }
 
-    function parseFileStr(bytes1 file) public returns (uint f){
+    function parseFileStr(bytes1 file) internal returns (uint f){
         f = 8;
         if (file == bytes1("a")){
             f = 0;
@@ -66,7 +66,7 @@ library TestHelpers {
         }
     }
 
-    function parsePiece(bytes1 piece, uint side) public returns (IGocDataTypes.Piece p) {
+    function parsePiece(bytes1 piece, uint side) internal returns (IGocDataTypes.Piece p) {
         p = IGocDataTypes.Piece.uk;
 
         if (piece == bytes1("N")){
@@ -114,7 +114,7 @@ library TestHelpers {
         uint side,
         uint gameId,
         uint moveCount
-    ) public pure returns (uint moveValue) {
+    ) internal pure returns (uint moveValue) {
         moveValue |= uint(moveCount << 36);
         moveValue |= (gameId << 20);
         moveValue |= (side << 17);
@@ -126,11 +126,11 @@ library TestHelpers {
         moveValue |= sourceSq;
     }
 
-    function isEqual(bytes memory b1, bytes memory b2) public returns (bool){
+    function isEqual(bytes memory b1, bytes memory b2) internal returns (bool){
         return keccak256(abi.encodePacked(b1)) == keccak256(abi.encodePacked(b2));
     }
 
-    function findSourceSqForTargetSq(IGocDataTypes.Piece p, uint side, uint64[12] memory bitboards, uint targetSq, uint eR, uint eF) public returns (uint sq){
+    function findSourceSqForTargetSq(IGocDataTypes.Piece p, uint side, uint64[12] memory bitboards, uint targetSq, uint eR, uint eF) internal returns (uint sq){
         uint64 sourceBoard = bitboards[uint(p)];
         uint64 targetBoard = uint64(1 << targetSq);
         uint64 blockboard = GameHelpers.getBlockerboard(bitboards);
@@ -199,7 +199,7 @@ library TestHelpers {
         uint64[12] memory bitboards, 
         uint16 moveCount, 
         uint16 gameId
-    ) public returns (uint moveValue){
+    ) internal returns (uint moveValue){
 
         // king side castle
         if (isEqual(move, bytes("O-O"))){

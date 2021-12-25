@@ -9,10 +9,7 @@ import "ds-test/test.sol";
 
 
 contract PGNGame is Game, DSTest {
-    using String for string;
-
-    function setUp() public {
-    }   
+    using String for string; 
 
     /*
         Few game PGNs
