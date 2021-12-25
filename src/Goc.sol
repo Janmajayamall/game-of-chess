@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.0;
 import "ds-test/test.sol";
-import "./interfaces/IChess.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IGocEvents.sol";
 import "./ERC1155.sol";
@@ -38,15 +37,15 @@ contract Goc is Game, ERC1155, IGocEvents {
 
     function createAndFundMarket(uint256 _moveValue, address _creator) external {
         // check game is in valid state
-        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
+        uint16 _gameId = GameHelpers.decodeGameIdFromMoveValue(_moveValue);
         GameState memory _gameState = gamesState[_gameId];
         require(_gameState.state == 1, "Invalid move");
 
         {
             // decode move
-            MoveMetadata memory _moveMetadata = decodeMoveMetadataFromMoveValue(_moveValue, _gameState.bitboards);
+            MoveMetadata memory _moveMetadata = GameHelpers.decodeMoveMetadataFromMoveValue(_moveValue, _gameState.bitboards);
             // check move validity against current game state
-            require(isMoveValid(_gameState, _moveMetadata), "Invalid move");
+            require(GameHelpers.isMoveValid(_gameState, _moveMetadata), "Invalid move");
         }
 
         // check whether move already exists
@@ -81,8 +80,8 @@ contract Goc is Game, ERC1155, IGocEvents {
 
         // market should not have expired
         {
-            uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
-            uint16 _moveCount = decodeMoveCountFromMoveValue(_moveValue);
+            uint16 _gameId = GameHelpers.decodeGameIdFromMoveValue(_moveValue);
+            uint16 _moveCount = GameHelpers.decodeMoveCountFromMoveValue(_moveValue);
             GameState memory _gameState = gamesState[_gameId];
             require(_gameState.moveCount + 1 == _moveCount, "Market expired");
         }
@@ -123,8 +122,8 @@ contract Goc is Game, ERC1155, IGocEvents {
 
         // market should not have expired
         {
-            uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
-            uint16 _moveCount = decodeMoveCountFromMoveValue(_moveValue);
+            uint16 _gameId = GameHelpers.decodeGameIdFromMoveValue(_moveValue);
+            uint16 _moveCount = GameHelpers.decodeMoveCountFromMoveValue(_moveValue);
             GameState memory _gameState = gamesState[_gameId];
             require(_gameState.moveCount + 1 == _moveCount, "Market expired");
         }
@@ -160,7 +159,7 @@ contract Goc is Game, ERC1155, IGocEvents {
     function redeemWins(uint256 _moveValue, address to) external {
         require(marketCreators[_moveValue] != address(0), "Market invalid");
 
-        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
+        uint16 _gameId = GameHelpers.decodeGameIdFromMoveValue(_moveValue);
         GameState memory _gameState = gamesState[_gameId];
         bool isChosenMove = chosenMoveValues[_moveValue];
         require(_gameState.state == 2 && isChosenMove == true, "Invalid State");
@@ -196,8 +195,8 @@ contract Goc is Game, ERC1155, IGocEvents {
     function redeem(uint256 _moveValue, address to) external {
         require(marketCreators[_moveValue] != address(0), "Market invalid");
 
-        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
-        uint16 _moveCount = decodeMoveCountFromMoveValue(_moveValue);
+        uint16 _gameId = GameHelpers.decodeGameIdFromMoveValue(_moveValue);
+        uint16 _moveCount = GameHelpers.decodeMoveCountFromMoveValue(_moveValue);
         GameState memory _gameState = gamesState[_gameId];
         bool isChosenMove = chosenMoveValues[_moveValue];
         require(
@@ -237,7 +236,7 @@ contract Goc is Game, ERC1155, IGocEvents {
         require(marketCreators[_moveValue] != address(0), "Invalid Market");
 
         // Time elapsed since last move should be atleast 24 hours
-        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
+        uint16 _gameId = GameHelpers.decodeGameIdFromMoveValue(_moveValue);
         uint lastMoveTimestamp = gamesLastMoveTimestamp[_gameId];
         // TODO switch time diffrence back to 24 hrs from 60 seconds
         require(block.timestamp - lastMoveTimestamp > 60, "Time Err");
