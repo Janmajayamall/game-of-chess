@@ -4,19 +4,14 @@ pragma solidity ^0.8.0;
 import "./../libraries/TestHelpers.t.sol";
 import "./../libraries/String.sol";
 import "./../helpers/TestToken.sol";
-import "./../Goc.sol";
+import "./../Game.sol";
 import "ds-test/test.sol";
 
 
-contract PGNGame is DSTest {
+contract PGNGame is Game, DSTest {
     using String for string;
 
-    Goc goc;
-    TestToken testToken;
-
     function setUp() public {
-        testToken= new TestToken();
-        goc = new Goc(address(testToken));
     }   
 
     /*
@@ -31,13 +26,11 @@ contract PGNGame is DSTest {
      */
 
     function est_ChessGame() public {
-        Goc _goc = goc;
-
         string memory pgnStr = "1. e4 e5 2. f4 exf4 3. Bc4 Qh4+ 4. Kf1 b5 5. Bxb5 Nf6 6. Nf3 Qh6 7. d3 Nh5 8. Nh4 Qg5 9. Nf5 c6 10. g4 Nf6 11. Rg1 cxb5 12. h4 Qg6 13. h5 Qg5 14. Qf3 Ng8 15. Bxf4 Qf6 16. Nc3 Bc5 17. Nd5 Qxb2 18. Bd6 Bxg1 19. e5 Qxa1+ 20. Ke2 Na6 21. Nxg7+ Kd8 22. Qf6+ Nxf6 23. Be7 ";
 
         uint16 gameId = 1;
 
-        _goc.newGame();
+        _newGame();
 
         // run
         bytes memory pgnBytes = bytes(pgnStr);
@@ -66,16 +59,16 @@ contract PGNGame is DSTest {
             // emit log_named_string("PGN White value: ", string(whiteM));
             debugStr = debugStr.append(string("\n PGN White value: ").append(string(whiteM)));
             moveCount += 1;
-            moveValue = testHelpers.parsePGNToMoveValue(
+            moveValue = TestHelpers.parsePGNToMoveValue(
                 whiteM,
                 0,
-                _goc.getGameState(gameId).bitboards,
+                gamesState[gameId].bitboards,
                 moveCount,
                 gameId
             );
-            debugStr = debugStr.append(testHelpers.formatMoveMetadataToString(moveValue, _goc.getGameState(gameId).bitboards));
-            _goc.applyMove(moveValue);
-            debugStr = debugStr.append(testHelpers.formatBoardToString(_goc.getGameState(gameId).bitboards));
+            debugStr = debugStr.append(TestHelpers.formatMoveMetadataToString(moveValue, gamesState[gameId].bitboards));
+            applyMove(moveValue);
+            debugStr = debugStr.append(TestHelpers.formatBoardToString(gamesState[gameId].bitboards));
 
             index += 1; // skip space
 
@@ -90,16 +83,16 @@ contract PGNGame is DSTest {
                 // emit log_named_string("PGN Black value: ", string(blackM));
                 debugStr = debugStr.append(string("\n PGN Black value: ").append(string(blackM)));
                 moveCount += 1;
-                moveValue = testHelpers.parsePGNToMoveValue(
+                moveValue = TestHelpers.parsePGNToMoveValue(
                     blackM,
                     1,
-                    testHelpers.gamesState[gameId].bitboards,
+                    gamesState[gameId].bitboards,
                     moveCount,
                     gameId
                 );
-                debugStr = debugStr.append(testHelpers.formatMoveMetadataToString(moveValue, _goc.getGameState(gameId).bitboards));
-                testHelpers.applyMove(moveValue);
-                debugStr = debugStr.append(testHelpers.formatBoardToString(_goc.getGameState(gameId).bitboards));
+                debugStr = debugStr.append(TestHelpers.formatMoveMetadataToString(moveValue, gamesState[gameId].bitboards));
+                applyMove(moveValue);
+                debugStr = debugStr.append(TestHelpers.formatBoardToString(gamesState[gameId].bitboards));
                 
                 index += 1;
 
