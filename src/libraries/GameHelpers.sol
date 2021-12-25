@@ -5,7 +5,7 @@ import "./../interfaces/IGocDataTypes.sol";
 import "./../libraries/String.sol";
 import "./../libraries/Uint.sol";
 
-library GocHelpers {
+library GameHelpers {
     using String for string;
     using Uint for uint;
 

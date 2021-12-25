@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 // import "ds-test/test.sol";
 import "./interfaces/IGocDataTypes.sol";
+import "./libraries/GameHelpers.sol";
 
 contract Game is IGocDataTypes {
     // gameId => game's state
@@ -11,22 +12,17 @@ contract Game is IGocDataTypes {
     // game index
     uint16 public gameIndex;
 
-    // event Log(string f);
-    // event Log(string f, uint d);
-
-    function getGameState(uint16 _gameIndex) public  returns (GameState memory){
+    function getGameState(uint16 _gameIndex) external view returns (GameState memory){
         return gamesState[_gameIndex];
     }
 
-
-    
     function applyMove(uint256 _moveValue) internal {
-        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
+        uint16 _gameId = GameHelpers.decodeGameIdFromMoveValue(_moveValue);
         GameState memory gameState = gamesState[_gameId];
-        MoveMetadata memory move = decodeMoveMetadataFromMoveValue(_moveValue, gameState.bitboards);
+        MoveMetadata memory move = GameHelpers.decodeMoveMetadataFromMoveValue(_moveValue, gameState.bitboards);
 
         // check whether move is valid
-        require(isMoveValid(gameState, move), "Invalid move");
+        require(GameHelpers.isMoveValid(gameState, move), "Invalid move");
         
         // check game over
         if (move.targetPiece == Piece.K){
@@ -120,7 +116,7 @@ contract Game is IGocDataTypes {
     }
 
     function _oddCaseDeclareOutcome(uint256 outcome, uint256 _moveValue) internal  {
-        uint16 _gameId = decodeGameIdFromMoveValue(_moveValue);
+        uint16 _gameId = GameHelpers.decodeGameIdFromMoveValue(_moveValue);
         GameState memory _gameState = gamesState[_gameId];
         require(_gameState.state == 1, "Invalid State");
         require(outcome < 3, "Invalid outcome");
