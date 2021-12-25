@@ -3,9 +3,21 @@
 pragma solidity ^0.8.0;
 import "./TestHelpers.t.sol";
 import "./../libraries/String.sol";
+import "ds-test/test.sol";
+import "./../helpers/TestToken.sol";
 
-contract PGNGame is TestHelpers {
+
+contract PGNGame is DSTest {
     using String for string;
+
+    TestHelpers testHelpers;
+    TestToken testToken;
+
+    function setUp() public {
+        address _token = address(new TestToken());
+        testHelpers = new TestHelpers(_token);
+        testToken = TestToken(_token);
+    }   
 
     /*
         Few game PGNs
@@ -23,7 +35,7 @@ contract PGNGame is TestHelpers {
 
         uint16 gameId = 1;
 
-        _newGame();
+        testHelpers.newGame();
 
         // run
         bytes memory pgnBytes = bytes(pgnStr);
@@ -52,16 +64,16 @@ contract PGNGame is TestHelpers {
             // emit log_named_string("PGN White value: ", string(whiteM));
             debugStr = debugStr.append(string("\n PGN White value: ").append(string(whiteM)));
             moveCount += 1;
-            moveValue = parsePGNToMoveValue(
+            moveValue = testHelpers.parsePGNToMoveValue(
                 whiteM,
                 0,
-                gamesState[gameId].bitboards,
+                testHelpers.getGameState(gameId).bitboards,
                 moveCount,
                 gameId
             );
-            debugStr = debugStr.append(formatMoveMetadataToString(moveValue));
-            applyMove(moveValue);
-            debugStr = debugStr.append(formatBoardToString(1));
+            debugStr = debugStr.append(testHelpers.formatMoveMetadataToString(moveValue));
+            testHelpers.applyMove(moveValue);
+            debugStr = debugStr.append(testHelpers.formatBoardToString(1));
 
             index += 1; // skip space
 
@@ -76,16 +88,16 @@ contract PGNGame is TestHelpers {
                 // emit log_named_string("PGN Black value: ", string(blackM));
                 debugStr = debugStr.append(string("\n PGN Black value: ").append(string(blackM)));
                 moveCount += 1;
-                moveValue = parsePGNToMoveValue(
+                moveValue = testHelpers.parsePGNToMoveValue(
                     blackM,
                     1,
-                    gamesState[gameId].bitboards,
+                    testHelpers.gamesState[gameId].bitboards,
                     moveCount,
                     gameId
                 );
-                debugStr = debugStr.append(formatMoveMetadataToString(moveValue));
-                applyMove(moveValue);
-                debugStr = debugStr.append(formatBoardToString(1));
+                debugStr = debugStr.append(testHelpers.formatMoveMetadataToString(moveValue));
+                testHelpers.applyMove(moveValue);
+                debugStr = debugStr.append(testHelpers.formatBoardToString(1));
                 
                 index += 1;
 

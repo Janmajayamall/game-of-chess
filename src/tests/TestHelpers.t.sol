@@ -5,9 +5,9 @@ import "./../Goc.sol";
 import "./../libraries/String.sol";
 import "./../libraries/Uint.sol";
 import "./../interfaces/IGocDataTypes.sol";
-import "ds-test/test.sol";
+import "./../helpers/TestToken.sol";
 
-contract TestHelpers is Goc, DSTest {
+library TestHelpers {
     using String for string;
     using Uint for uint;
 
@@ -67,7 +67,7 @@ contract TestHelpers is Goc, DSTest {
         }
     }
 
-    function parsePiece(bytes1 piece, uint side) public returns (Piece p) {
+    function parsePiece(bytes1 piece, uint side) public returns (IGocDataTypes.Piece p) {
         p = Piece.uk;
 
         if (piece == bytes1("N")){
@@ -131,7 +131,7 @@ contract TestHelpers is Goc, DSTest {
         return keccak256(abi.encodePacked(b1)) == keccak256(abi.encodePacked(b2));
     }
 
-    function findSourceSqForTargetSq(Piece p, uint side, uint64[12] memory bitboards, uint targetSq, uint eR, uint eF) public returns (uint sq){
+    function findSourceSqForTargetSq(IGocDataTypes.Piece p, uint side, uint64[12] memory bitboards, uint targetSq, uint eR, uint eF) public returns (uint sq){
         uint64 sourceBoard = bitboards[uint(p)];
         uint64 targetBoard = uint64(1 << targetSq);
         uint64 blockboard = getBlockerboard(bitboards);
