@@ -2,8 +2,8 @@
 
 set -eo pipefail
 
-Goc=0x4C42B00757FaE8aeE5F09a6b5363B6f476f7201d
-GocRouter=0x474F8a2E737f01D4A659c3beB04029BA73ED77C9
+Goc=0x5d24A59077844FAB0ef62423496026d5ab2D87F3
+GocRouter=0x61631f6D09985F760bb436275d34c09e79293bA5
 
 # create new game
 estimate=$(seth estimate $Goc "newGame()")

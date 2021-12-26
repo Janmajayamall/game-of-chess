@@ -285,15 +285,17 @@ library GameHelpers {
         gameId = uint16((moveValue >> 20) & 65535);
     }
 
-    function decodeMoveCountFromMoveValue(uint256 moveValue) internal pure returns (uint16 gameId){
-        gameId = uint16(moveValue >> 36);
+    function decodeMoveCountFromMoveValue(uint256 moveValue) internal pure returns (uint16 moveCount){
+        moveCount = uint16(moveValue >> 36);
     }
 
     function decodeMoveMetadataFromMoveValue(uint256 moveValue, uint64[12] memory bitboards) internal pure returns (IGocDataTypes.MoveMetadata memory moveMetadata) {
         moveMetadata.sourceSq = moveValue & 63;
         moveMetadata.targetSq = (moveValue >> 6) & 63;
         moveMetadata.side = (moveValue >> 17) & 1;
+        moveMetadata.gameId = uint16(moveValue >> 20);
         moveMetadata.moveCount = uint16(moveValue >> 36);
+    
 
         // flags
         uint pawnPromotion = (moveValue >> 12) & 15;

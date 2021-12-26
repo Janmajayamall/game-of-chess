@@ -6,8 +6,7 @@ set -eo pipefail
 . $(dirname $0)/common.sh
 
 # Deploy.
-# Goc=$(deploy Goc $TEST_TOKEN_ADDRESS)
-Goc=0x4C42B00757FaE8aeE5F09a6b5363B6f476f7201d
+Goc=$(deploy Goc $TEST_TOKEN_ADDRESS)
 GocRouter=$(deploy GocRouter $Goc)
 
 log "Goc deployed at:" $Goc

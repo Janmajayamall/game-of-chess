@@ -16,6 +16,7 @@ interface IGocDataTypes {
 
     struct MoveMetadata {
         uint256 side;
+        uint16 gameId;
         uint16 moveCount;
 
         uint256 sourceSq;
