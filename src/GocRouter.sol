@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 import "./libraries/GameHelpers.sol";
-import "./libraries/GameParsers.sol";
 import "./Goc.sol";
 import "./interfaces/IGocDataTypes.sol";
 
@@ -15,24 +14,8 @@ contract GocRouter {
         goc = Goc(gocAddress);
     }
 
-    function getGameFenString(uint16 _gameId) external view returns (string memory){
-        return GameParsers.parseGameStateToFenString(goc.getGameState(_gameId));
-    }
-
-    function getGameBitboardsStr(uint16 _gameId) external view returns (string memory){
-        return GameParsers.parseBitboardsToString(goc.getGameState(_gameId).bitboards);
-    }
-
     function getGameState(uint16 _gameId) external view returns (IGocDataTypes.GameState memory gameState) {
         gameState = goc.getGameState(_gameId);
-    }
-
-    function getGameIdFromMoveValue(uint256 _moveValue) external pure returns(uint16 _gameId){
-        _gameId = GameHelpers.decodeGameIdFromMoveValue(_moveValue);
-    }
-
-    function getMoveCountFromMoveValue(uint256 _moveValue) external pure returns(uint16 _moveCount){
-        _moveCount = GameHelpers.decodeMoveCountFromMoveValue(_moveValue);
     }
 
     function getMoveMetadataFromMoveValue(uint256 _moveValue) external view returns(IGocDataTypes.MoveMetadata memory _moveMetadata){

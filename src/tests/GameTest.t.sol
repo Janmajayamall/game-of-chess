@@ -32,13 +32,13 @@ contract GameTest is Game, DSTest {
 
     function test_pawnMove() public {
         emit log_named_string("JKJK ", GameParsers.parseGameStateToFenString(gamesState[1]));
-        emit log_named_string("JKJK ", GameParsers.parseBitboardsToString(gamesState[1].bitboards));
+        // emit log_named_string("JKJK ", GameParsers.parseBitboardsToString(gamesState[1].bitboards));
 
-        applyMove(68720527920);
+        // applyMove(68720527920);
 
-        emit log_named_string("JKJK 1", GameParsers.parseBitboardsToString(gamesState[1].bitboards));
+        // emit log_named_string("JKJK 1", GameParsers.parseBitboardsToString(gamesState[1].bitboards));
         
-        assertTrue(false);
+        // assertTrue(false);
     }
 
 }
