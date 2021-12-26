@@ -2,11 +2,12 @@
 
 set -eo pipefail
 
-Goc=0xf57e96FBF6BeB0BcE1aB80faef921C890F1FcD79
-GocRouter=0x3ba53672352E30158097534e91Ce165df1E015Ab
+Goc=0x4C42B00757FaE8aeE5F09a6b5363B6f476f7201d
+GocRouter=0x474F8a2E737f01D4A659c3beB04029BA73ED77C9
 
 # create new game
 estimate=$(seth estimate $Goc "newGame()")
+echo $estimate
 seth send $Goc "newGame()" --gas $estimate
 
 # mint max uint256 token balance

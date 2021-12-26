@@ -115,7 +115,7 @@ library TestHelpers {
         uint gameId,
         uint moveCount
     ) internal pure returns (uint moveValue) {
-        moveValue |= uint(moveCount << 36);
+        moveValue |= moveCount << 36;
         moveValue |= (gameId << 20);
         moveValue |= (side << 17);
         if (castleFlag == true){
