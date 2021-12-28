@@ -11,7 +11,7 @@ contract Goc is Game, ERC1155, IGocEvents {
 
     // move markets
     mapping(uint256 => address) public marketCreators;
-    mapping(uint256 => OutcomeReserves) outcomeReserves;
+    mapping(uint256 => OutcomeReserves) public outcomeReserves;
     mapping(uint256 => mapping(address => uint256)) betAmounts;
     uint256 cReserves;
 
