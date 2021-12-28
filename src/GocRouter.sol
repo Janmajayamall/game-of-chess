@@ -80,8 +80,45 @@ contract GocRouter {
     }  
 
     // redeemBet
-    function redeemBet
+    function redeemBetAmount(uint256 moveValue) external {
+        goc.redeemBetAmount(moveValue, msg.sender);
+    }
     
-    // redeemWin
+    // redeemWins
+    function redeemWins(uint256 _for, uint256 amountInToken, uint256 moveValue) external {
+        require(_for < 2, "INVALID INDEX");
+
+        Goc _goc = goc;
+
+        if (_for == 0){
+            (uint256 t, ) = _goc.getOutcomeReservesTokenIds(moveValue);
+            IERC1155(address(_goc)).safeTransferFrom(msg.sender, address(_goc), t, amountInToken, '');
+            _goc.redeemWins(moveValue, msg.sender);
+        }else {
+            (, uint256 t) = _goc.getOutcomeReservesTokenIds(moveValue);
+            IERC1155(address(_goc)).safeTransferFrom(msg.sender, address(_goc), t, amountInToken, '');
+            _goc.redeemWins(moveValue, msg.sender);
+        }
+    }
+
+    function redeemWinsBothOutcome(uint256 amountInToken0, uint256 amountInToken1, uint256 moveValue) external {
+        Goc _goc = goc;
+
+        (uint256 t0, uint256 t1) = _goc.getOutcomeReservesTokenIds(moveValue);
+        IERC1155(address(_goc)).safeTransferFrom(msg.sender, address(_goc), t0, amountInToken0, '');
+        IERC1155(address(_goc)).safeTransferFrom(msg.sender, address(_goc), t1, amountInToken1, '');
+        _goc.redeemWins(moveValue, msg.sender);
+    }
+
+    function redeenWinsMax(uint256 moveValue) external {
+        Goc _goc = goc;
+
+        (uint256 t0, uint256 t1) = _goc.getOutcomeReservesTokenIds(moveValue);
+        uint256 b0 = IERC1155(_goc).balanceOf(msg.sender, t0);
+        uint256 b1 = IERC1155(_goc).balanceOf(msg.sender, t1);
+        IERC1155(address(_goc)).safeTransferFrom(msg.sender, address(_goc), t0, b0, '');
+        IERC1155(address(_goc)).safeTransferFrom(msg.sender, address(_goc), t0, b1, '');
+        _goc.redeemWins(moveValue, msg.sender);
+    }
 
 }
