@@ -21,6 +21,6 @@ GocRouter=0x0FE01B284904Df107807F991A76Aa4Ef21D710fE
 # echo $estimate
 # seth send $TEST_TOKEN_ADDRESS "approve(address,uint256)" $GocRouter $(seth --max-uint 256) --gas $estimate
 
-# estimate=$(seth estimate $GocRouter "createFundBetOnMarket(uint256,uint256,uint256,uint256)" 68720527920 $(seth --to-wei 1 eth) $(seth --to-wei 1 eth) 1)
-# echo $estimate
-# seth estimate $GocRouter "createFundBetOnMarket(uint256,uint256,uint256,uint256)" 68720527920 $(seth --to-wei 1 eth) $(seth --to-wei 1 eth) 1
+estimate=$(seth estimate $GocRouter "createFundBetOnMarket(uint256,uint256,uint256,uint256)" 68720527985 $(seth --to-wei 1 eth) $(seth --to-wei 1 eth) 1)
+echo $estimate
+seth estimate $GocRouter "createFundBetOnMarket(uint256,uint256,uint256,uint256)" 68720527985 $(seth --to-wei 1 eth) $(seth --to-wei 1 eth) 1

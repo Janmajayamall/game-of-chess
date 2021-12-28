@@ -45,19 +45,20 @@ contract GameTest is Game, DSTest {
 
     function test_encodeMove() public {
         uint16 gameId = 1;
-        // uint moveValue = TestHelpers.encodeMove(
-        //     48, 
-        //     40, 
-        //     0,
-        //     false,
-        //     0,
-        //     gameId,
-        //     1
-        // );
-        uint moveValue = 68720527920;
-        GameHelpers.decodeGameIdFromMoveValue(moveValue);
-        IGocDataTypes.GameState memory state = gamesState[gameId];
-        bool isValid = GameHelpers.isMoveValid(state, GameHelpers.decodeMoveMetadataFromMoveValue(moveValue, state.bitboards));
-        require(isValid);
+        uint moveValue = TestHelpers.encodeMove(
+            49, 
+            41, 
+            0,
+            false,
+            0,
+            gameId,
+            1
+        );
+        emit log_named_uint("moveValue", moveValue);
+        // uint moveValue = 68720527920;
+        // GameHelpers.decodeGameIdFromMoveValue(moveValue);
+        // IGocDataTypes.GameState memory state = gamesState[gameId];
+        // bool isValid = GameHelpers.isMoveValid(state, GameHelpers.decodeMoveMetadataFromMoveValue(moveValue, state.bitboards));
+        assertTrue(false);
     }
 }

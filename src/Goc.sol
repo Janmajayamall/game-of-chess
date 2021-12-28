@@ -104,8 +104,8 @@ contract Goc is Game, ERC1155, IGocEvents {
         _mint(address(this), oToken1Id, amountIn, '');
 
         // optimistically transfer amount0 & amount1
-        safeTransferFrom(address(this), to, oToken0Id, amount0, '');
-        safeTransferFrom(address(this), to, oToken1Id, amount1, '');
+        _transfer(address(this), to, oToken0Id, amount0);
+        _transfer(address(this), to, oToken1Id, amount1);
 
         // check invariance
         uint nReserve0 = _outcomeReserves.reserve0 + amountIn - amount0;

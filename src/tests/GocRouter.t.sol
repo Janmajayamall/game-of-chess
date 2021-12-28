@@ -11,7 +11,7 @@ import "./../GocRouter.sol";
 import "ds-test/test.sol";
 
 
-contract GameRouterTest is DSTest {
+contract GocRouterTest is DSTest {
 
     GocRouter gocRouter;
     Goc goc;
@@ -23,10 +23,14 @@ contract GameRouterTest is DSTest {
         gocRouter = new GocRouter(address(goc));
 
         goc.newGame();
+
+        // mint token & give approval
+        testToken.mint(address(this), type(uint256).max);
+        testToken.approve(address(gocRouter), type(uint256).max);
     }
 
     function test_moveValid() public {
-        gocRouter.isMoveValid(68720527920);
+        gocRouter.createFundBetOnMarket(68720527985, 1*10**18, 1*10**18, 1);
     }
 
 

@@ -116,6 +116,7 @@ contract ERC1155 is IERC1155, IERC165 {
         public
         override
     {
+        emit TransferSingle(msg.sender, from, to, id, value);
         require(to != address(0), "ERC1155: target address must be non-zero");
         require(
             from == msg.sender || _operatorApprovals[from][msg.sender] == true,
@@ -124,9 +125,6 @@ contract ERC1155 is IERC1155, IERC165 {
 
         _balances[id][from] -= value;
         _balances[id][to] += value;
-
-        emit TransferSingle(msg.sender, from, to, id, value);
-
         // _doSafeTransferAcceptanceCheck(msg.sender, from, to, id, value, data);
     }
 
