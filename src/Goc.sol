@@ -9,17 +9,18 @@ import "./Game.sol";
 
 contract Goc is Game, ERC1155, IGocEvents {
 
-    mapping(uint256 => address) marketCreators;
-
-    uint256 cReserves;
+    // move markets
+    mapping(uint256 => address) public marketCreators;
     mapping(uint256 => OutcomeReserves) outcomeReserves;
+    mapping(uint256 => mapping(address => uint256)) betAmounts;
+    uint256 cReserves;
 
+    // make moves
     mapping(uint256 => bool) chosenMoveValues;
     mapping(uint16 => uint) gamesLastMoveTimestamp;
 
-    address immutable cToken;
-
     address manager;
+    address immutable public  cToken;
 
     constructor(address _cToken) {
         manager = msg.sender;
@@ -91,6 +92,9 @@ contract Goc is Game, ERC1155, IGocEvents {
         uint256 _cReserves = cReserves;
         uint amountIn = IERC20(_cToken).balanceOf(address(this)) - _cReserves;
         cReserves = _cReserves + amountIn;
+
+        // update bet amount for moveValue
+        betAmounts[_moveValue][to] += amountIn;
         
         (uint oToken0Id, uint oToken1Id) = getOutcomeReservesTokenIds(_moveValue);
         OutcomeReserves memory _outcomeReserves = outcomeReserves[_moveValue];
@@ -192,34 +196,20 @@ contract Goc is Game, ERC1155, IGocEvents {
         emit WinningRedeemed(_moveValue, to);
     }
 
-    function redeem(uint256 _moveValue, address to) external {
+    function redeemBetAmount(uint256 _moveValue, address _of) external {
         require(marketCreators[_moveValue] != address(0), "Market invalid");
 
-        uint16 _gameId = GameHelpers.decodeGameIdFromMoveValue(_moveValue);
-        uint16 _moveCount = GameHelpers.decodeMoveCountFromMoveValue(_moveValue);
-        GameState memory _gameState = gamesState[_gameId];
-        bool isChosenMove = chosenMoveValues[_moveValue];
+        GameState memory _gameState = gamesState[GameHelpers.decodeGameIdFromMoveValue(_moveValue)];
         require(
-            (_gameState.moveCount + 1 > _moveCount || _gameState.state == 2) 
-            && isChosenMove == false                
+            (_gameState.moveCount + 1 > GameHelpers.decodeMoveCountFromMoveValue(_moveValue) || _gameState.state == 2) 
+            && chosenMoveValues[_moveValue] == false
         );
 
-        // amount0In and amount1In
-        OutcomeReserves memory _outcomeReserves = outcomeReserves[_moveValue];
-        (uint oToken0Id, uint oToken1Id) = getOutcomeReservesTokenIds(_moveValue);
-        uint amount0In = balanceOf(address(this), oToken0Id) - _outcomeReserves.reserve0;
-        uint amount1In = balanceOf(address(this), oToken1Id) - _outcomeReserves.reserve1;
-
-        // burn received tokens
-        _burn(address(this), oToken0Id, amount0In);
-        _burn(address(this), oToken1Id, amount1In);
-
-        // amountOut
-        uint amountOut = amount0In + amount1In;
-        IERC20(cToken).transfer(to, amountOut);
-        cReserves -= amountOut;
-
-        emit BetRedeemed(_moveValue, to);
+        uint256 betAmount = betAmounts[_moveValue][_of];
+        IERC20(cToken).transfer(_of, betAmount);
+        cReserves -= betAmount;
+        
+        emit BetRedeemed(_moveValue, _of);
     }
 
     // manager functions 

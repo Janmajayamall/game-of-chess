@@ -41,4 +41,18 @@ contract GameTest is Game, DSTest {
         // assertTrue(false);
     }
 
+
+    function test_encodeMove() public {
+        uint moveV = TestHelpers.encodeMove(
+            49, 
+            41, 
+            0,
+            false,
+            0,
+            1,
+            1
+        );
+        emit log_named_uint("Move ", moveV);
+        assertTrue(false);
+    }
 }

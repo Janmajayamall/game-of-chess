@@ -24,7 +24,7 @@ contract PGNGame is Game, DSTest {
 
      */
 
-    function test_ChessGame() public {
+    function est_ChessGame() public {
         string memory pgnStr = "1. e4 e5 2. f4 exf4 3. Bc4 Qh4+ ";
 
         uint16 gameId = 1;

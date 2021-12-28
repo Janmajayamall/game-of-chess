@@ -45,6 +45,7 @@ interface IGocDataTypes {
         // playing side
         uint8 side; // 0 -> white, 1 -> black
 
+
         // winner
         uint8 winner; // 0 -> white, 1 -> black, 2 -> draw
 
