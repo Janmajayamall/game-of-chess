@@ -1,6 +1,6 @@
 # include .env file and export its env vars
 # (-include to ignore error if it does not exist)
--include .env
+-include .dev.env
 
 install: solc update npm
 
@@ -31,7 +31,6 @@ deploy :; @./scripts/deploy.sh
 deploy-dev :; @./scripts/deploy-dev.sh
 
 # testnet
-deploy-testnet: export ETH_RPC_URL=http://127.0.0.1:8545
 deploy-testnet: deploy-dev
 
 # arbitrum-rinkeby

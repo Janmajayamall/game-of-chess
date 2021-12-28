@@ -12,15 +12,15 @@ contract Goc is Game, ERC1155, IGocEvents {
     // move markets
     mapping(uint256 => address) public marketCreators;
     mapping(uint256 => OutcomeReserves) public outcomeReserves;
-    mapping(uint256 => mapping(address => uint256)) betAmounts;
-    uint256 cReserves;
+    mapping(uint256 => mapping(address => uint256)) public betAmounts;
+    uint256 public cReserves;
 
     // make moves
-    mapping(uint256 => bool) chosenMoveValues;
-    mapping(uint16 => uint) gamesLastMoveTimestamp;
+    mapping(uint256 => bool) public chosenMoveValues;
+    mapping(uint16 => uint) public gamesLastMoveTimestamp;
 
-    address manager;
-    address immutable public  cToken;
+    address public manager;
+    address immutable public cToken;
 
     constructor(address _cToken) {
         manager = msg.sender;

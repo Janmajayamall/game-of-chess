@@ -121,4 +121,15 @@ contract GocRouter {
         _goc.redeemWins(moveValue, msg.sender);
     }
 
+    /**
+    Functions below are only helpers
+    */
+
+    function isMoveValid(uint moveValue) external {
+        uint16 gameId = GameHelpers.decodeGameIdFromMoveValue(moveValue);
+        IGocDataTypes.GameState memory state = goc.getGameState(gameId);
+        bool isValid = GameHelpers.isMoveValid(state, GameHelpers.decodeMoveMetadataFromMoveValue(moveValue, state.bitboards));
+        require(isValid, "Invalid move");
+    }
+
 }

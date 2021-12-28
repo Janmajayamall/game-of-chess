@@ -127,7 +127,7 @@ contract ERC1155 is IERC1155, IERC165 {
 
         emit TransferSingle(msg.sender, from, to, id, value);
 
-        _doSafeTransferAcceptanceCheck(msg.sender, from, to, id, value, data);
+        // _doSafeTransferAcceptanceCheck(msg.sender, from, to, id, value, data);
     }
 
     /**
@@ -184,7 +184,7 @@ contract ERC1155 is IERC1155, IERC165 {
         _balances[id][to] += value;
         emit TransferSingle(msg.sender, address(0), to, id, value);
 
-        _doSafeTransferAcceptanceCheck(msg.sender, address(0), to, id, value, data);
+        // _doSafeTransferAcceptanceCheck(msg.sender, address(0), to, id, value, data);
     }
 
     /**
