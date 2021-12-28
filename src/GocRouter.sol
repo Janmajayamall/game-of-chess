@@ -59,7 +59,7 @@ contract GocRouter {
         require(a0 >= amountOutToken0Min && a1 >= amountOutToken1Min, "TRADE: INVALID");
         
         // buy
-        TransferHelper.safeTransfer(_goc.cToken(), address(_goc), amountInC);
+        TransferHelper.safeTransferFrom(_goc.cToken(), msg.sender, address(_goc), amountInC);
         _goc.buy(a0, a1, msg.sender, moveValue);
     }
 

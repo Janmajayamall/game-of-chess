@@ -4,8 +4,8 @@ set -eo pipefail
 
 # Goc=0x8701978d5598a91Fb590cfaA1fa9764564E5f087
 # GocRouter=0xB379f451F5DC50943f6F260323FBE03D9532a431
-Goc=0x35e1761E0De1E2142E5A97AA85C27D713f8Af104
-GocRouter=0x0FE01B284904Df107807F991A76Aa4Ef21D710fE
+Goc=0x40C524B77096645AE0B943c937DBC973d4f276e6
+GocRouter=0x22B55C94418bd4d797FD9C127060e9a9490D40d3
 
 # create new game
 # estimate=$(seth estimate $Goc "newGame()")
@@ -23,4 +23,4 @@ GocRouter=0x0FE01B284904Df107807F991A76Aa4Ef21D710fE
 
 estimate=$(seth estimate $GocRouter "createFundBetOnMarket(uint256,uint256,uint256,uint256)" 68720527985 $(seth --to-wei 1 eth) $(seth --to-wei 1 eth) 1)
 echo $estimate
-seth estimate $GocRouter "createFundBetOnMarket(uint256,uint256,uint256,uint256)" 68720527985 $(seth --to-wei 1 eth) $(seth --to-wei 1 eth) 1
+seth send $GocRouter "createFundBetOnMarket(uint256,uint256,uint256,uint256)" 68720527985 $(seth --to-wei 1 eth) $(seth --to-wei 1 eth) 1

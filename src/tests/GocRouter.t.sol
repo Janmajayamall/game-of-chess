@@ -31,6 +31,8 @@ contract GocRouterTest is DSTest {
 
     function test_moveValid() public {
         gocRouter.createFundBetOnMarket(68720527985, 1*10**18, 1*10**18, 1);
+        gocRouter.buyMinTokensForExactCTokens(1*10**18, 0, 2*10**18, 1, 68720527985);
+
     }
 
 
